@@ -1,6 +1,7 @@
-const mascot = "https://www.figma.com/api/mcp/asset/01a07a39-7d87-450a-a2d5-004708a5ddf3";
-const avatar = "https://www.figma.com/api/mcp/asset/2c4dc6f0-cc3f-4413-b0a6-6af33fdd20ff";
-const candidatePhoto = "https://www.figma.com/api/mcp/asset/f3da633e-10f9-48ea-8fec-04e457d1662b";
+const mascot = "./assets/mascot.svg";
+const avatar = "./assets/avatar.svg";
+const candidatePhoto = "./assets/candidate.svg";
+const bannerIcon = "./assets/banner-icon.svg";
 
 const candidates = [
   {
@@ -166,25 +167,129 @@ candidates.push(
 
 const state = {
   view: "home",
+  phase: "home",
   dropdown: false,
   mode: "Fast",
   hireType: "社招",
   prompt: "",
-  questionOne: "985/211",
-  questionTwo: "C、C++、STL",
+  submittedPrompt: "",
+  questionOne: "",
+  questionTwo: "",
   selectedCandidate: 0,
+  automationModal: false,
+  automationView: "manage",
+  automationAgent: true,
+  automationTeam: true,
   subtitlePlayed: false
 };
 
+let flowTimer = null;
+let typingTimer = null;
+
+function clearFlowTimer() {
+  if (flowTimer) {
+    clearTimeout(flowTimer);
+    flowTimer = null;
+  }
+  if (typingTimer) {
+    clearInterval(typingTimer);
+    typingTimer = null;
+  }
+}
+
+function schedulePhase(nextPhase, delay) {
+  clearFlowTimer();
+  flowTimer = setTimeout(() => {
+    state.phase = nextPhase;
+    if (nextPhase === "results") {
+      state.view = "fast";
+    }
+    render();
+  }, delay);
+}
+
+function phaseDelay(phase) {
+  const delays = {
+    results: 0
+  };
+  return delays[phase] || 0;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function submittedPrompt() {
+  return state.submittedPrompt || state.prompt.trim() || "我想找PC客户端开发工程师";
+}
+
+function jobTitle() {
+  const prompt = submittedPrompt()
+    .replace(/^我想找/, "")
+    .replace(/^招聘/, "")
+    .replace(/^寻找/, "")
+    .trim();
+  if (/^\d+$/.test(prompt)) return "PC客户端开发工程师";
+  return prompt || "PC客户端开发工程师";
+}
+
+function answerSummary() {
+  const education = state.questionOne.trim();
+  const language = state.questionTwo.trim();
+  return {
+    education: education || "未填写",
+    language: language || "未填写"
+  };
+}
+
+function introCopy() {
+  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${jobTitle()}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了`;
+}
+
+function profileCopy() {
+  return "好的，信息充分！我为您生成候选人画像。请确认您的搜索条件是否需要调整：";
+}
+
+function startTypewriter(targetId, nextPhase) {
+  const target = document.getElementById(targetId);
+  if (!target || typingTimer) return;
+  const text = target.dataset.text || "";
+  let index = 0;
+  target.textContent = "";
+  typingTimer = setInterval(() => {
+    index += 1;
+    target.textContent = text.slice(0, index);
+    if (index >= text.length) {
+      clearInterval(typingTimer);
+      typingTimer = null;
+      state.phase = nextPhase;
+      render();
+    }
+  }, 32);
+}
+
+function startIntroTypewriter() {
+  startTypewriter("introTypewriter", "questions");
+}
+
+function startProfileTypewriter() {
+  startTypewriter("profileTypewriter", "profile");
+}
+
 function icon(name) {
   const icons = {
-    bell: "⌕",
-    back: "‹",
-    add: "+",
-    send: "➤",
-    more: "···",
+    bell: '<i class="iconfont icon-notification-btn"></i>',
+    back: '<i class="iconfont icon-back"></i>',
+    add: '<i class="iconfont icon-add"></i>',
+    send: '<i class="iconfont icon-icon-submit"></i>',
+    more: '<i class="iconfont icon-more"></i>',
+    stop: '<i class="iconfont icon-stop"></i>',
     check: "✓",
-    settings: "⚙"
+    settings: '<i class="iconfont icon-operation"></i>'
   };
   return icons[name] || "";
 }
@@ -209,15 +314,15 @@ function home() {
           <strong>JobAssistant</strong>
         </div>
         <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}">岗位智能画像快速匹配简历</p>
-        <img class="mascot" src="${mascot}" alt="" />
         <div class="input-card ${state.dropdown ? "focused" : ""}">
+          <img class="mascot" src="${mascot}" alt="" />
           <textarea id="homePrompt" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
           <div class="input-footer">
             <div class="left-tools">
               <div class="segment">
                 ${["社招", "校招"].map(type => `<button class="${state.hireType === type ? "active" : ""}" data-hire="${type}">${type}</button>`).join("")}
               </div>
-              <button class="mode-button ${state.dropdown ? "open" : ""}" id="modeButton">${state.mode}<span>⌄</span></button>
+              <button class="mode-button ${state.dropdown ? "open" : ""}" id="modeButton">${state.mode}<i class="iconfont icon-chevron-down"></i></button>
               ${state.dropdown ? dropdown() : ""}
             </div>
             <div class="right-tools">
@@ -227,66 +332,241 @@ function home() {
           </div>
         </div>
       </section>
+      ${state.automationModal ? automationModal() : ""}
     </main>
   `;
 }
 
 function dropdown() {
-  const options = ["Fast", "找简历邀约全流程", "混元团队招聘"];
+  const options = ["Fast", "Agent全流程", "混元自定义招聘"];
   return `
     <div class="dropdown">
       ${options.map(option => `
         <button class="dropdown-item" data-mode="${option}">
           <span>${option}</span>
-          ${state.mode === option ? `<b>${icon("check")}</b>` : ""}
+          ${state.mode === option ? `<i class="iconfont icon-confirm"></i>` : ""}
         </button>
       `).join("")}
       <div class="divider"></div>
-      <button class="dropdown-item config"><i>${icon("settings")}</i><span>配置自动化流程</span></button>
+      <button class="dropdown-item config" id="openAutomationModal">${icon("settings")}<span>配置自动化流程</span></button>
     </div>
   `;
 }
 
-function fastPage(results = false) {
+function automationModal() {
   return `
-    <main class="fast-view">
+    <div class="modal-layer" id="automationModal" role="dialog" aria-modal="true" aria-labelledby="automationTitle">
+      <div class="modal-backdrop" id="closeAutomationBackdrop"></div>
+      <section class="automation-modal ${state.automationView === "create" ? "show-create" : "show-manage"}" id="automationPanel">
+        <div class="automation-viewport">
+          <div class="automation-pages">
+            <div class="automation-page automation-page-manage">
+              ${automationManagePanel()}
+            </div>
+            <div class="automation-page automation-page-create">
+              ${automationCreatePanel()}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function automationSwitch(checked, disabled = false, key = "") {
+  return `
+    <button class="automation-switch ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}" ${disabled ? "disabled" : ""} ${key ? `data-automation-toggle="${key}"` : ""} aria-label="开关">
+      <span></span>
+    </button>
+  `;
+}
+
+function automationManagePanel() {
+  return `
+    <header class="automation-header">
+      <h2 id="automationTitle">招聘自动化流程</h2>
+      <button class="modal-close" data-close-automation aria-label="关闭"></button>
+    </header>
+    <div class="automation-list">
+      <div class="automation-toggle-item">
+        <div class="automation-item-head">
+          <strong>Fast</strong>
+          ${automationSwitch(true, true)}
+        </div>
+        <p>依托岗位画像，AI 自动精准筛选、智能匹配简历，快速锁定适配候选人</p>
+      </div>
+      <div class="automation-toggle-item">
+        <div class="automation-item-head">
+          <strong>Agent全流程</strong>
+          ${automationSwitch(state.automationAgent, false, "agent")}
+        </div>
+        <p>AI 精准匹配人才，Agent 自动化全流程面试邀约</p>
+      </div>
+      <div class="automation-toggle-item compact">
+        <div class="automation-item-head">
+          <strong>混元自定义招聘</strong>
+          ${automationSwitch(state.automationTeam, false, "team")}
+        </div>
+      </div>
+      <button class="create-flow-button" id="createAutomationFlow">
+        <i class="iconfont icon-add"></i>
+        <span>创建自动化流程</span>
+      </button>
+    </div>
+  `;
+}
+
+function automationCreatePanel() {
+  const steps = [
+    ["#3464e0", "icon-icon-resume-search", "简历搜索", "输入规则，如：学历=博士，工作地=深圳", ""],
+    ["#ffa948", "icon-icon-evaluation-wrapper", "评估规则", "输入规则", ""],
+    ["#ff7548", "icon-icon-phone", "AI外呼", "输入规则，如：岗位介绍，部门信息", "去配置"],
+    ["#20c584", "icon-icon-email", "邀约规则", "输入规则，如：@选择面试官，邮件/短信通知方式", ""],
+    ["#f81d22", "icon-icon-output", "结果输出", "", ""]
+  ];
+  return `
+    <header class="automation-header">
+      <div class="automation-title-row">
+        <button class="automation-back" id="backAutomationManage" aria-label="返回"><i class="iconfont icon-back"></i></button>
+        <h2>未命名招聘自动化流程</h2>
+      </div>
+      <button class="modal-close" data-close-automation aria-label="关闭"></button>
+    </header>
+    <div class="flow-builder">
+      <div class="flow-scroll">
+        ${steps.map(([color, iconClass, title, placeholder, action], index) => `
+          <div class="flow-step">
+            <div class="flow-step-head">
+              <span class="flow-step-icon" style="--step-color:${color}"><i class="iconfont ${iconClass}"></i></span>
+              <strong>${title}</strong>
+              ${action ? `<button>${action}</button>` : ""}
+            </div>
+            ${placeholder ? `
+              <div class="flow-input-line">
+                <i class="iconfont icon-btn-edit"></i>
+                <input type="text" placeholder="${placeholder}" />
+              </div>
+            ` : ""}
+          </div>
+          ${index < steps.length - 1 ? `
+            <div class="flow-connector">
+              <span></span>
+              <button><i class="iconfont icon-add-node"></i></button>
+              <span></span>
+            </div>
+          ` : ""}
+        `).join("")}
+      </div>
+    </div>
+    <footer class="automation-create-footer">
+      <button class="text-action" id="cancelAutomationCreate">取消</button>
+      <button class="primary-pill" id="confirmAutomationCreate">创建 <i class="iconfont icon-arrow"></i></button>
+    </footer>
+  `;
+}
+
+function fastPage() {
+  const title = escapeHtml(jobTitle());
+  return `
+    <main class="fast-view phase-${state.phase}">
       <header class="app-header">
         <button id="backHome" class="back-button">${icon("back")}</button>
-        <h1>${state.hireType}PC客户端开发工程师简历匹配</h1>
+        <h1>${state.hireType}${title}简历匹配</h1>
         ${topActions()}
       </header>
-      ${chatThread(results)}
-      ${results ? followupInput() : questionForm()}
-      ${results ? resultsPanel() : loadingPanel()}
+      ${chatThread()}
+      ${bottomPanel()}
+      ${mainPanel()}
     </main>
   `;
 }
 
-function chatThread(results) {
-  if (results) {
+function chatThread() {
+  const prompt = escapeHtml(submittedPrompt());
+  const title = escapeHtml(jobTitle());
+  if (state.phase === "confirming") {
+    return `
+      <aside class="chat-column">
+        <div class="bubble user">${prompt}</div>
+      </aside>
+    `;
+  }
+
+  if (state.phase === "questionsTyping") {
+    const copy = escapeHtml(introCopy());
+    return `
+      <aside class="chat-column">
+        <div class="bubble user">${prompt}</div>
+        <div class="assistant-copy typewriter-fast" id="introTypewriter" data-text="${copy}"></div>
+      </aside>
+    `;
+  }
+
+  if (state.phase === "questions") {
+    const copy = escapeHtml(introCopy()).replace(/\n/g, "<br />");
+    return `
+      <aside class="chat-column">
+        <div class="bubble user">${prompt}</div>
+        <div class="assistant-copy">${copy}</div>
+        <div class="waiting"><span></span>等待您的回答</div>
+      </aside>
+    `;
+  }
+
+  if (state.phase === "profileTyping" || state.phase === "profile") {
+    const answers = answerSummary();
+    const isTyping = state.phase === "profileTyping";
     return `
       <aside class="chat-column chat-column-results">
-        <div class="bubble user">我想找PC客户端开发工程师</div>
+        <div class="bubble user">${prompt}</div>
         <div class="assistant-copy">
-          根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【PC客户端开发工程师】，并且有详细的技术要求。
+          根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。<br />
+          除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了
         </div>
-        <div class="bubble user answer-bubble">
-          <p>院校或学历偏好：${state.questionOne}</p>
-          <p>编程语言：${state.questionTwo}</p>
+        <div class="qa-answer-card">
+          <strong>1、院校或学历偏好？</strong>
+          <p>${escapeHtml(answers.education)}</p>
+          <strong>2、编程语言？</strong>
+          <p>${escapeHtml(answers.language)}</p>
         </div>
-        <div class="assistant-copy result-copy">
-          已根据您的补充要求生成候选人画像，并为您匹配到以下候选人。
+        ${isTyping
+          ? `<div class="assistant-copy result-copy typewriter-fast" id="profileTypewriter" data-text="${escapeHtml(profileCopy())}"></div>`
+          : `<div class="assistant-copy result-copy">${profileCopy()}</div>`}
+        ${isTyping ? "" : `<div class="waiting"><span></span>等待您的回答</div>`}
+      </aside>
+    `;
+  }
+
+  if (state.phase === "resultsLoading" || state.phase === "results") {
+    const answers = answerSummary();
+    return `
+      <aside class="chat-column chat-column-results">
+        <div class="bubble user">${prompt}</div>
+        <div class="assistant-copy">
+          根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。<br />
+          除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了
         </div>
-        <div class="complete-status"><span></span>已生成候选人匹配结果</div>
+        <div class="asked-summary">已询问2个问题 <i class="iconfont icon-chevron-down"></i></div>
+        <div class="result-copy">候选人画像最终确认</div>
+        ${profileConfirmCard(false, "profile-summary-card")}
+        <div class="result-copy">已为您匹配到20份候选人简历。</div>
+        <div class="matched-entry">
+          <span class="matched-icon"><img src="${bannerIcon}" alt="" /></span>
+          <div>
+            <strong>${title}的匹配简历</strong>
+            <p>20份简历</p>
+          </div>
+          <i class="iconfont icon-arrow"></i>
+        </div>
       </aside>
     `;
   }
 
   return `
     <aside class="chat-column">
-      <div class="bubble user">我想找PC客户端开发工程师</div>
+      <div class="bubble user">${prompt}</div>
       <div class="assistant-copy">
-        根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【PC客户端开发工程师】，并且有详细的技术要求。<br />
+        根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。<br />
         除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了
       </div>
       <div class="waiting"><span></span>等待您的回答</div>
@@ -295,46 +575,98 @@ function chatThread(results) {
 }
 
 function questionForm() {
+  const canSubmit = state.questionOne.trim() || state.questionTwo.trim();
   return `
     <section class="question-card">
       <div class="questions">
         ${questionBlock("1、院校或学历偏好？", "questionOne", ["985/211", "本科"], state.questionOne)}
         ${questionBlock("2、编程语言？", "questionTwo", ["C、C++、STL", "本科"], state.questionTwo)}
       </div>
-      <button id="submitQuestions" class="primary-pill">提交 <span>${icon("send")}</span></button>
+      <div class="question-actions">
+        <button id="cancelQuestions" class="text-action">取消</button>
+        <button id="submitQuestions" class="primary-pill ${canSubmit ? "" : "disabled"}">提交 <i class="iconfont icon-arrow"></i></button>
+      </div>
     </section>
   `;
 }
 
-function followupInput() {
+function followupInput(stop = false) {
   return `
     <section class="followup-card">
       <textarea id="followupPrompt" placeholder="请输入您对候选人的补充要求"></textarea>
       <div class="followup-footer">
-        <button class="send-button" id="followupSend" aria-label="继续匹配">${icon("send")}</button>
+        <button class="send-button ${stop ? "send-button-active stop-button" : ""}" id="${stop ? "stopFlow" : "followupSend"}" aria-label="${stop ? "停止" : "继续匹配"}">${stop ? icon("stop") : icon("send")}</button>
       </div>
     </section>
   `;
+}
+
+function profileConfirmCard(withActions = true, extraClass = "") {
+  const answers = answerSummary();
+  return `
+    <section class="profile-confirm-card ${extraClass}">
+      <h2>理想候选人画像</h2>
+      <dl>
+        <div><dt>岗位名称：</dt><dd>产品体验设计师</dd></div>
+        <div><dt>学历要求：</dt><dd>${escapeHtml(answers.education)}</dd></div>
+        <div><dt>专业要求：</dt><dd>计算机科学与技术、软件工程、人工智能、数据科学、信息安全、物联网工程</dd></div>
+        <div><dt>编程语言：</dt><dd>${escapeHtml(answers.language)}</dd></div>
+        <div><dt>客户端开发：</dt><dd>客户端开发、调试技能</dd></div>
+      </dl>
+      ${withActions ? `
+        <div class="question-actions">
+          <button id="cancelProfile" class="text-action">取消</button>
+          <button id="confirmProfile" class="primary-pill">提交 <i class="iconfont icon-arrow"></i></button>
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
+function bottomPanel() {
+  if (state.phase === "confirming" || state.phase === "questionsTyping" || state.phase === "profileTyping" || state.phase === "resultsLoading") return followupInput(true);
+  if (state.phase === "questions") return `${followupInput(false)}${questionForm()}`;
+  if (state.phase === "profile") return `${followupInput(false)}${profileConfirmCard(true)}`;
+  return followupInput(false);
+}
+
+function mainPanel() {
+  if (state.phase === "results") return resultsPanel();
+  return loadingPanel(state.phase === "profileTyping" || state.phase === "profile" || state.phase === "resultsLoading" ? "大模型正在为您匹配简历 ..." : "需求确认中 ...");
 }
 
 function questionBlock(title, key, options, value) {
   return `
     <div class="question-block">
       <h2>${title}</h2>
-      ${options.map(option => `<button class="answer ${value === option ? "selected" : ""}" data-answer="${key}:${option}">${option}</button>`).join("")}
+      ${options.map((option, index) => `<button class="answer ${value === option ? "selected" : ""}" data-answer="${key}:${option}"><b>${String.fromCharCode(65 + index)}</b>${option}</button>`).join("")}
       <input class="answer-input" data-input="${key}" placeholder="输入你的答案..." value="${options.includes(value) ? "" : value}" />
     </div>
   `;
 }
 
-function loadingPanel() {
+function loadingPanel(text = "需求确认中 ...") {
   return `
     <section class="result-panel empty">
       <button class="more-button">${icon("more")}</button>
-      <div class="loader-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <p>需求确认中 ...</p>
+      <div class="loader-stage" aria-hidden="true">
+        <div class="loader-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p>${text}</p>
     </section>
   `;
+}
+
+function syncQuestionCard() {
+  const canSubmit = state.questionOne.trim() || state.questionTwo.trim();
+  const submit = document.getElementById("submitQuestions");
+  if (submit) {
+    submit.classList.toggle("disabled", !canSubmit);
+  }
+  document.querySelectorAll("[data-answer]").forEach(button => {
+    const [key, value] = button.dataset.answer.split(":");
+    button.classList.toggle("selected", state[key] === value);
+  });
 }
 
 function resultsPanel() {
@@ -357,7 +689,7 @@ function candidateCard(candidate, index) {
         <div class="candidate-summary">
           <div class="candidate-avatar">
             <img src="${candidatePhoto}" alt="" />
-            <span>✓</span>
+            <span><i class="iconfont icon-male"></i></span>
           </div>
           <div class="candidate-info">
             <div class="candidate-name-row">
@@ -381,7 +713,7 @@ function candidateCard(candidate, index) {
           <div class="timeline">
             ${candidate.history.filter(item => item.some(Boolean)).map((item, itemIndex, list) => `
               <div class="timeline-row ${itemIndex === list.length - 1 ? "education" : ""}">
-                <span class="timeline-icon">${itemIndex === list.length - 1 ? "◆" : itemIndex === 0 ? "▣" : "•"}</span>
+                <span class="timeline-icon">${itemIndex === list.length - 1 ? '<i class="iconfont icon-cap"></i>' : itemIndex === 0 ? '<i class="iconfont icon-architecture"></i>' : "•"}</span>
                 <time>${item[0]}</time>
                 <p><span>${item[1]}</span><b></b><span>${item[2]}</span></p>
               </div>
@@ -402,8 +734,19 @@ function candidateCard(candidate, index) {
 
 function render() {
   const app = document.getElementById("app");
-  app.innerHTML = state.view === "home" ? home() : fastPage(state.view === "results");
+  app.innerHTML = state.view === "home" ? home() : fastPage();
   bindEvents();
+  if (state.phase === "questionsTyping") {
+    startIntroTypewriter();
+  }
+  if (state.phase === "profileTyping") {
+    startProfileTypewriter();
+  }
+  const delay = phaseDelay(state.phase);
+  if (delay) {
+    const next = state.phase === "questionsTyping" ? "questions" : state.phase === "profile" ? "results" : "";
+    if (next) schedulePhase(next, delay);
+  }
 }
 
 function bindEvents() {
@@ -452,18 +795,102 @@ function bindEvents() {
     });
   });
 
+  const openAutomationModal = document.getElementById("openAutomationModal");
+  if (openAutomationModal) {
+    openAutomationModal.addEventListener("click", () => {
+      state.dropdown = false;
+      state.automationModal = true;
+      state.automationView = "manage";
+      render();
+    });
+  }
+
+  const closeAutomation = () => {
+    state.automationModal = false;
+    render();
+  };
+
+  document.querySelectorAll("[data-close-automation]").forEach(button => {
+    button.addEventListener("click", closeAutomation);
+  });
+
+  const closeAutomationBackdrop = document.getElementById("closeAutomationBackdrop");
+  if (closeAutomationBackdrop) {
+    closeAutomationBackdrop.addEventListener("click", closeAutomation);
+  }
+
+  document.querySelectorAll("[data-automation-toggle]").forEach(button => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.automationToggle;
+      if (key === "agent") state.automationAgent = !state.automationAgent;
+      if (key === "team") state.automationTeam = !state.automationTeam;
+      button.classList.toggle("checked", key === "agent" ? state.automationAgent : state.automationTeam);
+    });
+  });
+
+  const switchAutomationView = view => {
+    state.automationView = view;
+    const panel = document.getElementById("automationPanel");
+    if (panel) {
+      panel.classList.toggle("show-create", view === "create");
+      panel.classList.toggle("show-manage", view === "manage");
+    }
+  };
+
+  const createAutomationFlow = document.getElementById("createAutomationFlow");
+  if (createAutomationFlow) {
+    createAutomationFlow.addEventListener("click", () => {
+      switchAutomationView("create");
+    });
+  }
+
+  const backAutomationManage = document.getElementById("backAutomationManage");
+  if (backAutomationManage) {
+    backAutomationManage.addEventListener("click", () => {
+      switchAutomationView("manage");
+    });
+  }
+
+  const cancelAutomationCreate = document.getElementById("cancelAutomationCreate");
+  if (cancelAutomationCreate) {
+    cancelAutomationCreate.addEventListener("click", () => switchAutomationView("manage"));
+  }
+
+  const confirmAutomationCreate = document.getElementById("confirmAutomationCreate");
+  if (confirmAutomationCreate) {
+    confirmAutomationCreate.addEventListener("click", closeAutomation);
+  }
+
+  if (state.automationModal) {
+    document.onkeydown = event => {
+      if (event.key === "Escape") closeAutomation();
+    };
+  } else {
+    document.onkeydown = null;
+  }
+
   const startFast = document.getElementById("startFast");
   if (startFast) {
     startFast.addEventListener("click", () => {
+      if (!state.prompt.trim()) return;
+      clearFlowTimer();
+      state.submittedPrompt = state.prompt.trim();
+      state.questionOne = "";
+      state.questionTwo = "";
+      state.selectedCandidate = 0;
       state.view = "fast";
+      state.phase = "confirming";
       render();
+      schedulePhase("questionsTyping", 1000);
     });
   }
 
   const backHome = document.getElementById("backHome");
   if (backHome) {
     backHome.addEventListener("click", () => {
+      clearFlowTimer();
       state.view = "home";
+      state.phase = "home";
       render();
     });
   }
@@ -472,21 +899,64 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const [key, value] = button.dataset.answer.split(":");
       state[key] = value;
-      render();
+      const input = document.querySelector(`[data-input="${key}"]`);
+      if (input) input.value = "";
+      syncQuestionCard();
     });
   });
 
   document.querySelectorAll("[data-input]").forEach(input => {
     input.addEventListener("input", event => {
-      state[event.target.dataset.input] = event.target.value || state[event.target.dataset.input];
+      state[event.target.dataset.input] = event.target.value;
+      syncQuestionCard();
     });
   });
 
   const submit = document.getElementById("submitQuestions");
   if (submit) {
     submit.addEventListener("click", () => {
-      state.view = "results";
+      if (!state.questionOne.trim() && !state.questionTwo.trim()) return;
+      clearFlowTimer();
+      state.phase = "profileTyping";
       render();
+    });
+  }
+
+  const stopFlow = document.getElementById("stopFlow");
+  if (stopFlow) {
+    stopFlow.addEventListener("click", () => {
+      clearFlowTimer();
+      state.view = "home";
+      state.phase = "home";
+      render();
+    });
+  }
+
+  const cancelQuestions = document.getElementById("cancelQuestions");
+  if (cancelQuestions) {
+    cancelQuestions.addEventListener("click", () => {
+      state.questionOne = "";
+      state.questionTwo = "";
+      render();
+    });
+  }
+
+  const cancelProfile = document.getElementById("cancelProfile");
+  if (cancelProfile) {
+    cancelProfile.addEventListener("click", () => {
+      clearFlowTimer();
+      state.phase = "questions";
+      render();
+    });
+  }
+
+  const confirmProfile = document.getElementById("confirmProfile");
+  if (confirmProfile) {
+    confirmProfile.addEventListener("click", () => {
+      clearFlowTimer();
+      state.phase = "resultsLoading";
+      render();
+      schedulePhase("results", 1000);
     });
   }
 
