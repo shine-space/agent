@@ -720,7 +720,14 @@ function candidateCard(candidate, index) {
             `).join("")}
           </div>
           <div class="candidate-tags">
-            ${candidate.skills.map(skill => `<span>${skill}</span>`).join("")}
+            <div class="candidate-tags-list">
+              ${candidate.skills.map(skill => `<span>${skill}</span>`).join("")}
+            </div>
+            <div class="candidate-actions">
+              <button class="interview-button">发起面试</button>
+              <button class="ai-invite-button"><span>✦</span>AI 邀约</button>
+              <button class="resume-more-button" aria-label="更多"><i class="iconfont icon-more"></i></button>
+            </div>
           </div>
         </div>
         <div class="match-analysis">
