@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "47887273",
+      "name": "magic",
+      "font_class": "magic",
+      "unicode": "e7da",
+      "unicode_decimal": 59354
+    },
+    {
       "icon_id": "47886205",
       "name": "btn-edit",
       "font_class": "btn-edit",

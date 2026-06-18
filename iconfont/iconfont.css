@@ -1,9 +1,9 @@
 @font-face {
   font-family: "iconfont"; /* Project id 5196990 */
-  src: url('iconfont.woff2?t=1781771292786') format('woff2'),
-       url('iconfont.woff?t=1781771292786') format('woff'),
-       url('iconfont.ttf?t=1781771292786') format('truetype'),
-       url('iconfont.svg?t=1781771292786#iconfont') format('svg');
+  src: url('iconfont.woff2?t=1781774395634') format('woff2'),
+       url('iconfont.woff?t=1781774395634') format('woff'),
+       url('iconfont.ttf?t=1781774395634') format('truetype'),
+       url('iconfont.svg?t=1781774395634#iconfont') format('svg');
 }
 
 .iconfont {
@@ -12,6 +12,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-magic:before {
+  content: "\e7da";
 }
 
 .icon-btn-edit:before {
