@@ -1,0 +1,104 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 5196990 */
+  src: url('iconfont.woff2?t=1781771292786') format('woff2'),
+       url('iconfont.woff?t=1781771292786') format('woff'),
+       url('iconfont.ttf?t=1781771292786') format('truetype'),
+       url('iconfont.svg?t=1781771292786#iconfont') format('svg');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-btn-edit:before {
+  content: "\e7d9";
+}
+
+.icon-icon-output:before {
+  content: "\e7d8";
+}
+
+.icon-icon-resume-search:before {
+  content: "\e7d2";
+}
+
+.icon-icon-phone:before {
+  content: "\e7d3";
+}
+
+.icon-icon-evaluation-wrapper:before {
+  content: "\e7d4";
+}
+
+.icon-confirm:before {
+  content: "\e7d5";
+}
+
+.icon-add-node:before {
+  content: "\e7d6";
+}
+
+.icon-icon-email:before {
+  content: "\e7d7";
+}
+
+.icon-btn-close:before {
+  content: "\e7d0";
+}
+
+.icon-confirm-o:before {
+  content: "\e7d1";
+}
+
+.icon-icon-submit:before {
+  content: "\e7c6";
+}
+
+.icon-operation:before {
+  content: "\e7c5";
+}
+
+.icon-add:before {
+  content: "\e7c7";
+}
+
+.icon-notification-btn:before {
+  content: "\e7c8";
+}
+
+.icon-architecture:before {
+  content: "\e7c9";
+}
+
+.icon-chevron-down:before {
+  content: "\e7ca";
+}
+
+.icon-arrow:before {
+  content: "\e7cb";
+}
+
+.icon-back:before {
+  content: "\e7cc";
+}
+
+.icon-male:before {
+  content: "\e7c4";
+}
+
+.icon-more:before {
+  content: "\e7cd";
+}
+
+.icon-stop:before {
+  content: "\e7ce";
+}
+
+.icon-cap:before {
+  content: "\e7cf";
+}
+
