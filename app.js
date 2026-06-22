@@ -2,6 +2,8 @@ const mascot = "./assets/mascot.svg";
 const avatar = "./assets/avatar.svg";
 const candidatePhoto = "./assets/candidate.svg";
 const bannerIcon = "./assets/banner-icon.svg";
+const meetingIcon = "./assets/meeting.svg";
+const radarIcon = "./assets/radar.svg";
 
 const candidates = [
   {
@@ -170,6 +172,7 @@ const state = {
   phase: "home",
   dropdown: false,
   mode: "Fast",
+  activeMode: "Fast",
   hireType: "社招",
   prompt: "",
   submittedPrompt: "",
@@ -180,6 +183,8 @@ const state = {
   automationView: "manage",
   automationAgent: true,
   automationTeam: true,
+  agentCallExpanded: true,
+  agentTaskStep: 1,
   subtitlePlayed: false
 };
 
@@ -206,6 +211,36 @@ function schedulePhase(nextPhase, delay) {
     }
     render();
   }, delay);
+}
+
+function scheduleAgentTaskAdvance() {
+  if (flowTimer) {
+    clearTimeout(flowTimer);
+    flowTimer = null;
+  }
+  flowTimer = setTimeout(() => {
+    if (!isAgentFlow() || state.phase !== "resultsLoading") return;
+    if (state.agentTaskStep < 4) {
+      state.agentTaskStep += 1;
+      state.agentCallExpanded = state.agentTaskStep === 3;
+      render();
+      scheduleAgentTaskAdvance();
+      return;
+    }
+    state.phase = "results";
+    state.agentTaskStep = 4;
+    state.agentCallExpanded = false;
+    render();
+  }, 4000);
+}
+
+function startAgentTaskSequence() {
+  clearFlowTimer();
+  state.phase = "resultsLoading";
+  state.agentTaskStep = 1;
+  state.agentCallExpanded = false;
+  render();
+  scheduleAgentTaskAdvance();
 }
 
 function phaseDelay(phase) {
@@ -235,6 +270,14 @@ function jobTitle() {
     .trim();
   if (/^\d+$/.test(prompt)) return "PC客户端开发工程师";
   return prompt || "PC客户端开发工程师";
+}
+
+function isAgentFlow() {
+  return state.activeMode === "Agent全流程";
+}
+
+function pageTaskName() {
+  return isAgentFlow() ? "简历匹配邀约" : "简历匹配";
 }
 
 function answerSummary() {
@@ -280,6 +323,23 @@ function startProfileTypewriter() {
   startTypewriter("profileTypewriter", "profile");
 }
 
+function startAgentIntroTypewriter() {
+  const target = document.getElementById("agentIntroTypewriter");
+  if (!target || typingTimer) return;
+  const text = target.dataset.text || "";
+  let index = 0;
+  target.textContent = "";
+  typingTimer = setInterval(() => {
+    index += 1;
+    target.textContent = text.slice(0, index);
+    if (index >= text.length) {
+      clearInterval(typingTimer);
+      typingTimer = null;
+      startAgentTaskSequence();
+    }
+  }, 32);
+}
+
 function icon(name) {
   const icons = {
     bell: '<i class="iconfont icon-notification-btn"></i>',
@@ -303,7 +363,14 @@ function topActions() {
   `;
 }
 
+function homeSubtitle() {
+  return state.mode === "Agent全流程"
+    ? "我能找到合适的简历并电话联系Ta沟通意向～"
+    : "岗位智能画像快速匹配简历";
+}
+
 function home() {
+  const subtitle = homeSubtitle();
   return `
     <main class="home-view">
       <div class="soft-grid"></div>
@@ -313,7 +380,7 @@ function home() {
           <span>Hi，欢迎使用</span>
           <strong>JobAssistant</strong>
         </div>
-        <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}">岗位智能画像快速匹配简历</p>
+        <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}" style="--subtitle-chars:${subtitle.length}; --subtitle-steps:${subtitle.length};">${subtitle}</p>
         <div class="input-card ${state.dropdown ? "focused" : ""}">
           <img class="mascot" src="${mascot}" alt="" />
           <textarea id="homePrompt" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
@@ -468,10 +535,10 @@ function automationCreatePanel() {
 function fastPage() {
   const title = escapeHtml(jobTitle());
   return `
-    <main class="fast-view phase-${state.phase}">
+    <main class="fast-view phase-${state.phase} ${isAgentFlow() ? "agent-flow" : "fast-flow"}">
       <header class="app-header">
         <button id="backHome" class="back-button">${icon("back")}</button>
-        <h1>${state.hireType}${title}简历匹配</h1>
+        <h1>${state.hireType}${title}${pageTaskName()}</h1>
         ${topActions()}
       </header>
       ${chatThread()}
@@ -484,6 +551,7 @@ function fastPage() {
 function chatThread() {
   const prompt = escapeHtml(submittedPrompt());
   const title = escapeHtml(jobTitle());
+  if (isAgentFlow()) return agentChatThread(prompt, title);
   if (state.phase === "confirming") {
     return `
       <aside class="chat-column">
@@ -574,6 +642,97 @@ function chatThread() {
   `;
 }
 
+function agentTaskItem(label, status = "done", open = false, detail = "", active = open) {
+  const isCallTask = label === "AI外呼候选人";
+  const statusIcon = status === "done"
+    ? '<i class="iconfont icon-confirm"></i>'
+    : status === "pending"
+      ? '<i class="iconfont icon-more"></i>'
+      : "";
+  return `
+    <div class="agent-task-item ${open ? "open" : ""} ${active ? "active" : ""}">
+      <div class="agent-task-head" ${isCallTask ? 'data-agent-task-toggle="call"' : ""}>
+        <span class="agent-task-check ${status}">${statusIcon}</span>
+        <strong>${label}</strong>
+        <i class="iconfont icon-chevron-down"></i>
+      </div>
+      ${detail && open ? `<div class="agent-task-detail">${detail}</div>` : ""}
+    </div>
+  `;
+}
+
+function agentStepTask(label, index, detail = "") {
+  if (state.agentTaskStep < index) return "";
+  const current = state.agentTaskStep === index && state.phase === "resultsLoading";
+  return agentTaskItem(label, current ? "pending" : "done", current, current ? detail : "", current);
+}
+
+function agentChatThread(prompt, title) {
+  const titleBubble = title;
+  const introText = `我来为您的需求规划任务，然后逐步实现。根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，让我先问几个关键问题。`;
+  const intro = escapeHtml(introText).replace(/\n/g, "<br />");
+  const callDetail = state.phase === "results"
+    ? `
+    <p>根据匹配的20份简历，为您AI已外呼</p>
+    <button><i class="iconfont icon-icon-phone"></i><span>外呼张三</span><i class="iconfont icon-chevron-right"></i></button>
+    <button><i class="iconfont icon-icon-phone"></i><span>外呼李四</span><i class="iconfont icon-chevron-right"></i></button>
+  `
+    : `
+    <p>根据匹配的20份简历，为您AI已外呼</p>
+    <button><i class="iconfont icon-icon-phone"></i><span>外呼张三</span><i class="iconfont icon-chevron-right"></i></button>
+    <button><span class="mini-loading"></span><span>外呼李四</span><i class="iconfont icon-chevron-right"></i></button>
+  `;
+
+  if (state.phase === "agentIntroTyping") {
+    return `
+      <aside class="chat-column agent-chat">
+        <div class="bubble user">${titleBubble}</div>
+        <div class="assistant-copy typewriter-fast" id="agentIntroTypewriter" data-text="${escapeHtml(introText)}"></div>
+      </aside>
+    `;
+  }
+
+  if (state.phase === "resultsLoading") {
+    return `
+      <aside class="chat-column agent-chat">
+        <div class="bubble user">${titleBubble}</div>
+        <div class="assistant-copy">${intro}</div>
+        ${agentStepTask("分析需求，确认候选人画像", 1)}
+        ${agentStepTask("匹配候选人简历", 2)}
+        ${agentStepTask("AI外呼候选人", 3, callDetail)}
+        ${agentStepTask("确认面试意向候选人", 4)}
+      </aside>
+    `;
+  }
+
+  if (state.phase === "results") {
+    return `
+      <aside class="chat-column agent-chat">
+        <div class="bubble user">${titleBubble}</div>
+        <div class="assistant-copy">${intro}</div>
+        ${agentTaskItem("分析需求，确认候选人画像")}
+        ${agentTaskItem("匹配候选人简历")}
+        ${agentTaskItem("AI外呼候选人", "done", state.agentCallExpanded, callDetail, false)}
+        ${agentTaskItem("确认面试意向候选人")}
+        <div class="matched-entry invite-entry">
+          <span class="matched-icon"><img src="${bannerIcon}" alt="" /></span>
+          <div>
+            <strong>${title}的已邀约候选人</strong>
+            <p>2位候选人</p>
+          </div>
+          <i class="iconfont icon-arrow"></i>
+        </div>
+      </aside>
+    `;
+  }
+
+  return `
+    <aside class="chat-column agent-chat">
+      <div class="bubble user">${titleBubble}</div>
+    </aside>
+  `;
+}
+
 function questionForm() {
   const canSubmit = state.questionOne.trim() || state.questionTwo.trim();
   return `
@@ -624,14 +783,27 @@ function profileConfirmCard(withActions = true, extraClass = "") {
 }
 
 function bottomPanel() {
+  if (isAgentFlow()) return followupInput(state.phase !== "results");
   if (state.phase === "confirming" || state.phase === "questionsTyping" || state.phase === "profileTyping" || state.phase === "resultsLoading") return followupInput(true);
   if (state.phase === "questions") return `${followupInput(false)}${questionForm()}`;
   if (state.phase === "profile") return `${followupInput(false)}${profileConfirmCard(true)}`;
   return followupInput(false);
 }
 
+function agentLoadingText() {
+  const texts = {
+    0: "需求规划中 ...",
+    1: "分析需求，确认候选人画像 ...",
+    2: "匹配候选人简历 ...",
+    3: "AI外呼候选人 ...",
+    4: "确认面试意向候选人 ..."
+  };
+  return texts[state.agentTaskStep] || "处理中 ...";
+}
+
 function mainPanel() {
   if (state.phase === "results") return resultsPanel();
+  if (isAgentFlow()) return loadingPanel(agentLoadingText(), "XXXXXXXXXXXXX");
   return loadingPanel(state.phase === "profileTyping" || state.phase === "profile" || state.phase === "resultsLoading" ? "大模型正在为您匹配简历 ..." : "需求确认中 ...");
 }
 
@@ -645,9 +817,10 @@ function questionBlock(title, key, options, value) {
   `;
 }
 
-function loadingPanel(text = "需求确认中 ...") {
+function loadingPanel(text = "需求确认中 ...", title = "") {
   return `
     <section class="result-panel empty">
+      ${title ? `<div class="result-head loading-head"><h2>${title}</h2></div>` : ""}
       <button class="more-button">${icon("more")}</button>
       <div class="loader-stage" aria-hidden="true">
         <div class="loader-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
@@ -655,6 +828,10 @@ function loadingPanel(text = "需求确认中 ...") {
       <p>${text}</p>
     </section>
   `;
+}
+
+function sortedCandidates() {
+  return [...candidates].sort((left, right) => right.score - left.score);
 }
 
 function syncQuestionCard() {
@@ -670,21 +847,53 @@ function syncQuestionCard() {
 }
 
 function resultsPanel() {
+  if (isAgentFlow()) return agentInviteResultsPanel();
   return `
-    <section class="result-panel results">
+    <section class="result-panel results ${isAgentFlow() ? "invite-results" : ""}">
       <div class="result-head">
+        ${isAgentFlow() ? `<h2>${escapeHtml(jobTitle())}的匹配简历</h2>` : ""}
         <button class="more-button">${icon("more")}</button>
       </div>
       <div class="candidate-stream">
-        ${candidates.map((candidate, index) => candidateCard(candidate, index)).join("")}
+        ${sortedCandidates().map((candidate, index) => candidateCard(candidate, index, isAgentFlow())).join("")}
       </div>
     </section>
   `;
 }
 
-function candidateCard(candidate, index) {
+function agentInviteResultsPanel() {
   return `
-    <article class="candidate-card ${state.selectedCandidate === index ? "active" : ""}" data-candidate="${index}">
+    <section class="result-panel results invite-results">
+      <div class="result-head">
+        <h2>${escapeHtml(jobTitle())}的已邀约候选人</h2>
+        <button class="more-button">${icon("more")}</button>
+      </div>
+      <div class="candidate-stream invite-stream">
+        ${sortedCandidates().slice(0, 2).map((candidate, index) => inviteCandidateCard(candidate, index)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function inviteCandidateCard(candidate, index) {
+  return candidateCard(candidate, index, true);
+}
+
+function candidateCard(candidate, index, inviteMode = false) {
+  const activity = index % 3 === 1 ? "1个月内沟通过" : index % 3 === 2 ? "最近活跃" : "本周活跃";
+  const meetingDates = ["6月18日 周四 14:00 - 15:00", "6月19日 周五 14:00 - 15:00"];
+  return `
+    <article class="candidate-card ${inviteMode ? "invite-card invitation-resume-card" : ""} ${!inviteMode && state.selectedCandidate === index ? "active" : ""}" data-candidate="${index}">
+      ${inviteMode ? `
+        <div class="invite-card-top">
+          <strong>${meetingDates[index] || candidate.meeting || meetingDates[0]}</strong>
+          <a class="meeting-id" href="javascript:void(0)" aria-label="查看会议 ${candidate.meetingId || "544 003 223"}"><img src="${meetingIcon}" alt="" /><span>${candidate.meetingId || "544 003 223"}</span></a>
+          <div>
+            <button>修改面试</button>
+            <button>取消安排</button>
+          </div>
+        </div>
+      ` : ""}
       <div class="candidate-body">
         <div class="candidate-summary">
           <div class="candidate-avatar">
@@ -694,18 +903,18 @@ function candidateCard(candidate, index) {
           <div class="candidate-info">
             <div class="candidate-name-row">
               <h3>${candidate.name}</h3>
-              <span class="viewed-tag">${candidate.viewed}</span>
+              <span class="viewed-tag ${inviteMode ? "viewed-tag-green" : ""}">${inviteMode ? activity : candidate.viewed}</span>
+              ${inviteMode ? `<span class="active-text">活跃</span>` : ""}
             </div>
             <div class="candidate-meta">
               ${candidate.meta.map(item => `<span>${item}</span>`).join("")}
             </div>
           </div>
           <div class="recommend">
-            <span class="gem"></span>
-            <i></i>
+            <img class="radar-icon" src="${radarIcon}" alt="" />
             <div class="rate">
               <span>推荐指数</span>
-              <b>${"★".repeat(candidate.score)}</b>
+              <b>${Array.from({ length: candidate.score }, () => '<i class="iconfont icon-star-filled"></i>').join("")}</b>
             </div>
           </div>
         </div>
@@ -748,6 +957,9 @@ function render() {
   }
   if (state.phase === "profileTyping") {
     startProfileTypewriter();
+  }
+  if (state.phase === "agentIntroTyping") {
+    startAgentIntroTypewriter();
   }
   const delay = phaseDelay(state.phase);
   if (delay) {
@@ -796,7 +1008,11 @@ function bindEvents() {
 
   document.querySelectorAll("[data-mode]").forEach(button => {
     button.addEventListener("click", () => {
-      state.mode = button.dataset.mode;
+      const nextMode = button.dataset.mode;
+      if (state.mode !== nextMode) {
+        state.subtitlePlayed = false;
+      }
+      state.mode = nextMode;
       state.dropdown = false;
       render();
     });
@@ -882,10 +1098,20 @@ function bindEvents() {
       if (!state.prompt.trim()) return;
       clearFlowTimer();
       state.submittedPrompt = state.prompt.trim();
+      state.activeMode = state.mode;
       state.questionOne = "";
       state.questionTwo = "";
       state.selectedCandidate = 0;
+      state.agentCallExpanded = true;
+      state.agentTaskStep = 1;
       state.view = "fast";
+      if (state.activeMode === "Agent全流程") {
+        state.phase = "agentIntroTyping";
+        state.agentTaskStep = 0;
+        state.agentCallExpanded = false;
+        render();
+        return;
+      }
       state.phase = "confirming";
       render();
       schedulePhase("questionsTyping", 1000);
@@ -928,6 +1154,15 @@ function bindEvents() {
       render();
     });
   }
+
+  document.querySelectorAll("[data-agent-task-toggle]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.agentTaskToggle === "call") {
+        state.agentCallExpanded = !state.agentCallExpanded;
+        render();
+      }
+    });
+  });
 
   const stopFlow = document.getElementById("stopFlow");
   if (stopFlow) {
