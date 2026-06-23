@@ -108,7 +108,7 @@ button {
   width: min(780px, calc(100vw - 32px));
   margin: 0 auto;
   position: absolute;
-  top: 50%;
+  top: 46%;
   left: 50%;
   transform: translate(-50%, -50%);
 }
@@ -126,20 +126,19 @@ button {
 .headline strong {
   color: #3567ff;
   background: linear-gradient(
-    100deg,
+    120deg,
     #3567ff 0%,
-    #3567ff 42%,
-    #ffffff 49%,
-    #8fb0ff 50%,
-    #ffffff 51%,
-    #3567ff 58%,
+    #3567ff 35%,
+    #ffffff 50%,
+    #3567ff 65%,
     #3567ff 100%
   );
-  background-size: 220% 100%;
-  background-position: 120% 0;
+  background-size: 150% auto;
+  background-position: 150% center;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-block;
   font-weight: 700;
   animation: brand-light-wave 4s linear infinite;
 }
@@ -175,7 +174,7 @@ button {
 
 .input-card {
   position: relative;
-  z-index: 1;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   height: 160px;
@@ -251,9 +250,122 @@ button {
   line-height: 22px;
 }
 
+.input-card textarea.has-hash-token {
+  color: var(--text);
+  caret-color: var(--text);
+}
+
 .input-card textarea::placeholder,
 .answer-input::placeholder {
   color: var(--muted);
+}
+
+.hash-job-picker {
+  position: absolute;
+  top: calc(var(--hash-picker-y, 16px) - 3px);
+  left: var(--hash-picker-x, 16px);
+  z-index: 8;
+  min-width: 140px;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.hash-job-token {
+  width: 140px;
+  min-width: 140px;
+  max-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #ebf0fc;
+}
+
+.hash-job-selected {
+  position: absolute;
+  top: calc(var(--hash-picker-y, 16px) - 3px);
+  left: var(--hash-picker-x, 16px);
+  z-index: 7;
+  display: inline-flex;
+  max-width: 200px;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #ebf0fc;
+  font-size: 14px;
+  line-height: 22px;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+.hash-job-selected span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hash-job-token input {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  color: #d6e0f9;
+  background: transparent;
+  font-size: 14px;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: break-word;
+  caret-color: var(--brand);
+}
+
+.hash-job-token input::placeholder {
+  color: #d6e0f9;
+}
+
+.hash-job-picker.has-query .hash-job-token input {
+  color: var(--blue);
+}
+
+.hash-job-menu {
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 8px 0;
+  border: 0.5px solid #dcdcdc;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 2px 12px 16px rgba(0, 0, 0, 0.1);
+}
+
+.hash-job-option {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 16px;
+  color: var(--text);
+  background: transparent;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: left;
+  word-break: break-word;
+}
+
+.hash-job-option:hover {
+  background: var(--bg);
+}
+
+.hash-job-menu .hash-job-option span {
+  color: #f81d22;
 }
 
 .input-footer {
@@ -275,6 +387,7 @@ button {
 }
 
 .segment {
+  position: relative;
   display: flex;
   gap: 2px;
   padding: 2px;
@@ -282,7 +395,31 @@ button {
   background: var(--soft);
 }
 
+.segment::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 44px;
+  height: calc(100% - 4px);
+  border-radius: 31px;
+  background: var(--brand);
+  transform: translateX(calc(var(--segment-index, 0) * 46px));
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background 180ms ease;
+  will-change: transform;
+}
+
+.segment[data-active="0"] {
+  --segment-index: 0;
+}
+
+.segment[data-active="1"] {
+  --segment-index: 1;
+}
+
 .segment button {
+  position: relative;
+  z-index: 1;
   min-width: 44px;
   padding: 3px 10px;
   border-radius: 31px;
@@ -290,11 +427,11 @@ button {
   background: transparent;
   font-size: 12px;
   line-height: 20px;
+  transition: color 180ms ease, font-weight 180ms ease;
 }
 
 .segment button.active {
   color: #fff;
-  background: var(--brand);
   font-weight: 600;
 }
 
@@ -389,12 +526,22 @@ button {
   top: 32px;
   left: 68px;
   z-index: 10;
-  width: 160px;
-  padding: 8px 0;
+  width: 180px;
+  padding: 8px 0px;
   border: 0.5px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   background: #fff;
   box-shadow: 2px 12px 32px rgba(0, 0, 0, 0.1);
+  transform-origin: 36px 0;
+  animation: dropdown-pop 260ms cubic-bezier(0.18, 0.9, 0.22, 1.22) both;
+  will-change: transform, opacity;
+}
+
+.dropdown-title {
+  padding: 1px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 24px;
 }
 
 .dropdown-item {
@@ -402,12 +549,12 @@ button {
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 3px 16px;
+  gap: 6px;
+  padding: 4px 16px;
   color: var(--secondary);
   background: #fff;
   font-size: 12px;
-  line-height: 22px;
+  line-height: 20px;
   text-align: left;
 }
 
@@ -424,14 +571,54 @@ button {
   color: var(--brand);
 }
 
+.dropdown-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropdown-label .iconfont {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.dropdown-item > .icon-confirm {
+  color: var(--blue);
+  font-size: 16px;
+}
+
+.dropdown-label-text {
+  
+}
+
 .dropdown-item.config {
   justify-content: flex-start;
 }
 
 .divider {
   height: 1px;
-  margin: 4px 8px;
+  margin: 4px 0;
   background: var(--line);
+}
+
+@keyframes dropdown-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-layer {
@@ -470,11 +657,13 @@ button {
 }
 
 .automation-viewport {
+  position: relative;
   width: 100%;
   height: 100%;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  border-radius: 16px;
 }
 
 .automation-pages {
@@ -482,7 +671,10 @@ button {
   height: 100%;
   display: flex;
   min-height: 0;
+  overflow: hidden;
+  transform: translateX(0);
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 .automation-modal.show-create .automation-pages {
@@ -606,7 +798,7 @@ button {
   height: 20px;
   flex: 0 0 auto;
   border-radius: 12px;
-  background: #dcdcdc;
+  background: var(--blue);
 }
 
 .automation-switch.checked {
@@ -668,6 +860,22 @@ button {
   color: var(--muted);
 }
 
+.automation-name-input {
+  width: min(280px, 100%);
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.automation-name-input:focus {
+  color: var(--text);
+}
+
 .automation-back {
   width: 16px;
   height: 16px;
@@ -722,7 +930,7 @@ button {
   gap: 12px;
   justify-content: center;
   padding: 12px;
-  border: 1px solid #8B8B8B;
+  border: 1px solid #D4D4D4;
   border-radius: 12px;
   background: #fff;
   transition: box-shadow 160ms ease;
@@ -762,7 +970,7 @@ button {
   justify-content: center;
   border-radius: 6px;
   color: #fff;
-  background: var(--step-color);
+  background: var(--step-color, var(--blue));
 }
 
 .flow-step-icon .iconfont {
@@ -824,7 +1032,7 @@ button {
 .flow-connector span {
   width: 2px;
   height: 12px;
-  background: #8B8B8B;
+  background: #D4D4D4;
 }
 
 .flow-connector span:last-child {
@@ -844,7 +1052,7 @@ button {
 
 .flow-connector .iconfont {
   font-size: 20px;
-  color: #8B8B8B;
+  color: #D4D4D4;
 }
 
 .flow-connector button:hover {
@@ -893,6 +1101,13 @@ button {
   line-height: 1;
 }
 
+.header-title-group {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 16px;
@@ -900,6 +1115,16 @@ button {
   line-height: 24px;
   white-space: nowrap; 
   overflow: hidden; 
+}
+
+.mode-tag {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: #E8EFFF;
+  color: var(--blue);
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .chat-column {
@@ -1067,14 +1292,15 @@ button {
   line-height: 20px;
 }
 .agent-task-detail .icon-chevron-right {
-    font-size: 12px;
-    color: var(--muted);
+  font-size: 12px;
+  color: var(--muted);
 }
- .agent-task-detail .icon-icon-phone {
-    font-size: 14px;
-    font-weight: 400;
-}   
+
+.agent-task-detail .icon-icon-phone {
+  font-size: 14px;
+  font-weight: 400;
 }
+
 .agent-task-detail .iconfont {
   font-size: 14px;
 }
@@ -1225,8 +1451,8 @@ button {
 .waiting span {
   width: 14px;
   height: 14px;
-  border: 2px solid #bfe1ff;
-  border-top-color: var(--brand);
+  border: 2px solid var(--line);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1329,6 +1555,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #fff;
+  overflow: hidden;
 }
 
 .followup-card textarea {
@@ -1510,10 +1737,10 @@ button {
 
 .loader-dots {
   width: 70px;
-  height: 50px;
+  height: 62px;
   display: grid;
   grid-template-columns: repeat(3, 14px);
-  grid-template-rows: repeat(2, 14px);
+  grid-template-rows: repeat(3, 14px);
   align-content: center;
   justify-content: center;
   gap: 10px;
@@ -1534,6 +1761,9 @@ button {
 .loader-dots span:nth-child(4) { background: #3a3e63; animation-delay: 0.3s; }
 .loader-dots span:nth-child(5) { background: #3a3e63; animation-delay: 0.4s; }
 .loader-dots span:nth-child(6) { background: #42b883; animation-delay: 0.5s; }
+.loader-dots span:nth-child(7) { background: #9ca3b7; animation-delay: 0.6s; }
+.loader-dots span:nth-child(8) { background: #3a3e63; animation-delay: 0.7s; }
+.loader-dots span:nth-child(9) { background: #9fdac9; animation-delay: 0.8s; }
 
 .empty p {
   margin: 0;
@@ -1803,6 +2033,7 @@ button {
   color: var(--text);
   font-size: 12px;
   line-height: 20px;
+  padding-top:2px;
 }
 
 .candidate-meta span + span::before {
@@ -1890,7 +2121,7 @@ button {
 .timeline-row {
   position: relative;
   display: grid;
-  grid-template-columns: 12px 140px minmax(0, 1fr);
+  grid-template-columns: 12px 120px minmax(0, 1fr);
   gap: 8px;
   min-height: 22px;
   align-items: start;
@@ -1998,28 +2229,46 @@ button {
 }
 
 .interview-button {
-  color: var(--brand);
-  border-color: var(--brand) !important;
+  color: var(--blue);
+  border-color: var(--blue) !important;
 }
-.interview-button:hover{
-  background:var(--brand);
+.interview-button:hover,
+.candidate-card:hover .interview-button {
+  background:var(--blue);
   color:#FFF;
 }
-
-.ai-invite-button span {
-  display: inline-block;
+.ai-invite-button:hover {
+  border-color:var(--blue);
+  color:var(--blue);
+}
+.resume-more-button:hover {
+  border-color:var(--blue);
+  color:var(--blue);
+}
+.ai-invite-button .iconfont {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
   margin-right: 6px;
-  color: var(--text);
+  color: currentColor;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .resume-more-button {
   width: 32px;
   height: 32px;
-  color: var(--muted) !important;
+  color: var(--muted);
   letter-spacing: 1px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.resume-more-button .iconfont {
+  color: currentColor;
 }
 
 .match-analysis {
@@ -2081,24 +2330,24 @@ button {
 @keyframes agent-detail-bounce {
   0% {
     opacity: 0;
-    transform: translateY(-6px) scaleY(0.94);
+    transform: translateY(-6px);
   }
   68% {
     opacity: 1;
-    transform: translateY(1px) scaleY(1.015);
+    transform: translateY(1px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scaleY(1);
+    transform: translateY(0);
   }
 }
 
 @keyframes brand-light-wave {
   0% {
-    background-position: 120% 0;
+    background-position: 150% center;
   }
   100% {
-    background-position: -120% 0;
+    background-position: -50% center;
   }
 }
 

@@ -1,9 +1,24 @@
 const mascot = "./assets/mascot.svg";
 const avatar = "./assets/avatar.svg";
-const candidatePhoto = "./assets/candidate.svg";
 const bannerIcon = "./assets/banner-icon.svg";
 const meetingIcon = "./assets/meeting.svg";
 const radarIcon = "./assets/radar.svg";
+const userAvatars = Array.from({ length: 10 }, (_, index) => `./assets/user_avatar/user_avatar_${String(index + 1).padStart(2, "0")}.jpg`);
+
+function shuffleList(list) {
+  const copy = [...list];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+const candidateAvatarOrder = shuffleList(userAvatars);
+
+function candidateAvatar(index) {
+  return candidateAvatarOrder[index % candidateAvatarOrder.length];
+}
 
 const candidates = [
   {
@@ -122,7 +137,7 @@ candidates.push(
   },
   {
     name: "周洋",
-    viewed: "简历完整",
+    viewed: "1年前更新",
     score: 3,
     meta: ["25岁", "3年工作经验", "本科", "南京"],
     title: "客户端开发工程师",
@@ -137,7 +152,7 @@ candidates.push(
   },
   {
     name: "孙悦",
-    viewed: "刚刚沟通",
+    viewed: "7天内看过",
     score: 5,
     meta: ["32岁", "9年工作经验", "硕士", "深圳"],
     title: "客户端技术专家",
@@ -181,15 +196,42 @@ const state = {
   selectedCandidate: 0,
   automationModal: false,
   automationView: "manage",
+  automationName: "未命名招聘自动化流程",
   automationAgent: true,
   automationTeam: true,
   agentCallExpanded: true,
   agentTaskStep: 1,
-  subtitlePlayed: false
+  subtitlePlayed: false,
+  hashPickerOpen: false,
+  hashPickerQuery: "",
+  hashPickerX: 16,
+  hashPickerY: 16,
+  hashToken: null
 };
+
+const jobDictionary = [
+  "UI设计师",
+  "交互设计师",
+  "视觉设计师",
+  "产品体验设计师",
+  "Android客户端开发",
+  "iOS客户端开发",
+  "前端客户端开发",
+  "客户端性能优化",
+  "产品经理",
+  "产品运营专员",
+  "产品策略分析师",
+  "高级产品专家",
+  "后端研发工程师",
+  "测试研发工程师",
+  "大数据研发工程师",
+  "算法研发工程师"
+];
 
 let flowTimer = null;
 let typingTimer = null;
+let hashInputComposing = false;
+let homePromptComposing = false;
 
 function clearFlowTimer() {
   if (flowTimer) {
@@ -211,6 +253,14 @@ function schedulePhase(nextPhase, delay) {
     }
     render();
   }, delay);
+}
+
+function scrollChatToLatest() {
+  requestAnimationFrame(() => {
+    const chat = document.querySelector(".chat-column");
+    if (!chat) return;
+    chat.scrollTop = chat.scrollHeight;
+  });
 }
 
 function scheduleAgentTaskAdvance() {
@@ -272,6 +322,10 @@ function jobTitle() {
   return prompt || "PC客户端开发工程师";
 }
 
+function selectedJobTitle() {
+  return state.hashToken?.text || jobTitle();
+}
+
 function isAgentFlow() {
   return state.activeMode === "Agent全流程";
 }
@@ -306,6 +360,7 @@ function startTypewriter(targetId, nextPhase) {
   typingTimer = setInterval(() => {
     index += 1;
     target.textContent = text.slice(0, index);
+    scrollChatToLatest();
     if (index >= text.length) {
       clearInterval(typingTimer);
       typingTimer = null;
@@ -332,6 +387,7 @@ function startAgentIntroTypewriter() {
   typingTimer = setInterval(() => {
     index += 1;
     target.textContent = text.slice(0, index);
+    scrollChatToLatest();
     if (index >= text.length) {
       clearInterval(typingTimer);
       typingTimer = null;
@@ -369,6 +425,89 @@ function homeSubtitle() {
     : "岗位智能画像快速匹配简历";
 }
 
+function hashPickerSuggestions() {
+  const query = state.hashPickerQuery.trim();
+  if (!query) return [];
+  const matched = jobDictionary.filter(item => item.includes(query));
+  return (matched.length ? matched : jobDictionary).slice(0, 4);
+}
+
+function highlightSuggestion(text) {
+  const query = state.hashPickerQuery.trim();
+  const safeText = escapeHtml(text);
+  if (!query) return safeText;
+  const index = text.indexOf(query);
+  if (index < 0) return safeText;
+  const before = escapeHtml(text.slice(0, index));
+  const match = escapeHtml(text.slice(index, index + query.length));
+  const after = escapeHtml(text.slice(index + query.length));
+  return `${before}<span>${match}</span>${after}`;
+}
+
+function updateHashPickerPosition(textarea, hashIndex) {
+  const card = textarea.closest(".input-card");
+  if (!card) return;
+  const beforeHash = textarea.value.slice(0, hashIndex);
+  const mirror = document.createElement("div");
+  const marker = document.createElement("span");
+  const styles = window.getComputedStyle(textarea);
+  mirror.style.position = "fixed";
+  mirror.style.left = "-9999px";
+  mirror.style.top = "0";
+  mirror.style.width = `${textarea.clientWidth}px`;
+  mirror.style.minHeight = `${textarea.clientHeight}px`;
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.font = styles.font;
+  mirror.style.fontSize = styles.fontSize;
+  mirror.style.fontFamily = styles.fontFamily;
+  mirror.style.fontWeight = styles.fontWeight;
+  mirror.style.lineHeight = styles.lineHeight;
+  mirror.style.letterSpacing = styles.letterSpacing;
+  mirror.style.padding = styles.padding;
+  mirror.style.border = "0";
+  mirror.textContent = beforeHash || "";
+  marker.textContent = "\u200b";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const markerRect = marker.getBoundingClientRect();
+  const mirrorRect = mirror.getBoundingClientRect();
+  const x = textarea.offsetLeft + markerRect.left - mirrorRect.left;
+  const y = textarea.offsetTop + markerRect.top - mirrorRect.top;
+  state.hashPickerX = Math.max(0, Math.min(x, textarea.offsetLeft + textarea.clientWidth - 140));
+  state.hashPickerY = Math.max(textarea.offsetTop, y);
+  mirror.remove();
+}
+
+function hashJobPicker() {
+  if (!state.hashPickerOpen) return "";
+  const query = state.hashPickerQuery;
+  const suggestions = hashPickerSuggestions();
+  return `
+    <div class="hash-job-picker ${query ? "has-query" : ""}" style="--hash-picker-x:${state.hashPickerX}px; --hash-picker-y:${state.hashPickerY}px;">
+      <div class="hash-job-token">
+        <input id="hashJobInput" type="text" value="${escapeHtml(query)}" placeholder="请输入岗位名称" />
+      </div>
+      ${query && suggestions.length ? `
+        <div class="hash-job-menu">
+          ${suggestions.map(item => `
+            <button class="hash-job-option" data-hash-job="${escapeHtml(item)}">${highlightSuggestion(item)}</button>
+          `).join("")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function hashSelectedToken() {
+  if (!state.hashToken) return "";
+  return `
+    <div class="hash-job-selected" style="--hash-picker-x:${state.hashToken.x}px; --hash-picker-y:${state.hashToken.y}px;">
+      <span>${escapeHtml(state.hashToken.text)}</span>
+    </div>
+  `;
+}
+
 function home() {
   const subtitle = homeSubtitle();
   return `
@@ -383,10 +522,12 @@ function home() {
         <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}" style="--subtitle-chars:${subtitle.length}; --subtitle-steps:${subtitle.length};">${subtitle}</p>
         <div class="input-card ${state.dropdown ? "focused" : ""}">
           <img class="mascot" src="${mascot}" alt="" />
-          <textarea id="homePrompt" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
+          <textarea id="homePrompt" class="${state.hashToken ? "has-hash-token" : ""}" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
+          ${hashSelectedToken()}
+          ${hashJobPicker()}
           <div class="input-footer">
             <div class="left-tools">
-              <div class="segment">
+              <div class="segment" data-active="${state.hireType === "社招" ? "0" : "1"}">
                 ${["社招", "校招"].map(type => `<button class="${state.hireType === type ? "active" : ""}" data-hire="${type}">${type}</button>`).join("")}
               </div>
               <button class="mode-button ${state.dropdown ? "open" : ""}" id="modeButton">${state.mode}<i class="iconfont icon-chevron-down"></i></button>
@@ -405,12 +546,24 @@ function home() {
 }
 
 function dropdown() {
-  const options = ["Fast", "Agent全流程", "混元自定义招聘"];
+  const officialOptions = [
+    { label: "Fast", icon: "icon-lightning" },
+    { label: "Agent全流程", icon: "icon-robox" }
+  ];
+  const customOptions = ["混元自定义招聘"];
   return `
     <div class="dropdown">
-      ${options.map(option => `
+      <div class="dropdown-title">官方</div>
+      ${officialOptions.map(option => `
+        <button class="dropdown-item" data-mode="${option.label}">
+          <span class="dropdown-label"><i class="iconfont ${option.icon}"></i>${option.label}</span>
+          ${state.mode === option.label ? `<i class="iconfont icon-confirm"></i>` : ""}
+        </button>
+      `).join("")}
+      <div class="dropdown-title">自定义</div>
+      ${customOptions.map(option => `
         <button class="dropdown-item" data-mode="${option}">
-          <span>${option}</span>
+          <span class="dropdown-label dropdown-label-text">${option}</span>
           ${state.mode === option ? `<i class="iconfont icon-confirm"></i>` : ""}
         </button>
       `).join("")}
@@ -495,7 +648,7 @@ function automationCreatePanel() {
     <header class="automation-header">
       <div class="automation-title-row">
         <button class="automation-back" id="backAutomationManage" aria-label="返回"><i class="iconfont icon-back"></i></button>
-        <h2>未命名招聘自动化流程</h2>
+        <input class="automation-name-input" id="automationNameInput" type="text" value="${escapeHtml(state.automationName)}" aria-label="自动化流程名称" />
       </div>
       <button class="modal-close" data-close-automation aria-label="关闭"></button>
     </header>
@@ -538,7 +691,10 @@ function fastPage() {
     <main class="fast-view phase-${state.phase} ${isAgentFlow() ? "agent-flow" : "fast-flow"}">
       <header class="app-header">
         <button id="backHome" class="back-button">${icon("back")}</button>
-        <h1>${state.hireType}${title}${pageTaskName()}</h1>
+        <div class="header-title-group">
+          <h1>${state.hireType}${title}${pageTaskName()}</h1>
+          <span class="mode-tag">${escapeHtml(state.activeMode)}</span>
+        </div>
         ${topActions()}
       </header>
       ${chatThread()}
@@ -607,6 +763,7 @@ function chatThread() {
 
   if (state.phase === "resultsLoading" || state.phase === "results") {
     const answers = answerSummary();
+    const candidateCount = sortedCandidates().length;
     return `
       <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
@@ -617,12 +774,12 @@ function chatThread() {
         <div class="asked-summary">已询问2个问题 <i class="iconfont icon-chevron-down"></i></div>
         <div class="result-copy">候选人画像最终确认</div>
         ${profileConfirmCard(false, "profile-summary-card")}
-        <div class="result-copy">已为您匹配到20份候选人简历。</div>
+        <div class="result-copy">已为您匹配到${candidateCount}份候选人简历。</div>
         <div class="matched-entry">
           <span class="matched-icon"><img src="${bannerIcon}" alt="" /></span>
           <div>
             <strong>${title}的匹配简历</strong>
-            <p>20份简历</p>
+            <p>${candidateCount}份简历</p>
           </div>
           <i class="iconfont icon-arrow"></i>
         </div>
@@ -668,8 +825,9 @@ function agentStepTask(label, index, detail = "") {
 }
 
 function agentChatThread(prompt, title) {
-  const titleBubble = title;
-  const introText = `我来为您的需求规划任务，然后逐步实现。根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，让我先问几个关键问题。`;
+  const titleBubble = prompt;
+  const agentTitle = selectedJobTitle();
+  const introText = `我来为您的需求规划任务，然后逐步实现。根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${agentTitle}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，让我先问几个关键问题。`;
   const intro = escapeHtml(introText).replace(/\n/g, "<br />");
   const callDetail = state.phase === "results"
     ? `
@@ -762,11 +920,12 @@ function followupInput(stop = false) {
 
 function profileConfirmCard(withActions = true, extraClass = "") {
   const answers = answerSummary();
+  const profileTitle = selectedJobTitle();
   return `
     <section class="profile-confirm-card ${extraClass}">
       <h2>理想候选人画像</h2>
       <dl>
-        <div><dt>岗位名称：</dt><dd>产品体验设计师</dd></div>
+        <div><dt>岗位名称：</dt><dd>${escapeHtml(profileTitle)}</dd></div>
         <div><dt>学历要求：</dt><dd>${escapeHtml(answers.education)}</dd></div>
         <div><dt>专业要求：</dt><dd>计算机科学与技术、软件工程、人工智能、数据科学、信息安全、物联网工程</dd></div>
         <div><dt>编程语言：</dt><dd>${escapeHtml(answers.language)}</dd></div>
@@ -803,7 +962,7 @@ function agentLoadingText() {
 
 function mainPanel() {
   if (state.phase === "results") return resultsPanel();
-  if (isAgentFlow()) return loadingPanel(agentLoadingText(), "XXXXXXXXXXXXX");
+  if (isAgentFlow()) return loadingPanel(agentLoadingText());
   return loadingPanel(state.phase === "profileTyping" || state.phase === "profile" || state.phase === "resultsLoading" ? "大模型正在为您匹配简历 ..." : "需求确认中 ...");
 }
 
@@ -823,7 +982,7 @@ function loadingPanel(text = "需求确认中 ...", title = "") {
       ${title ? `<div class="result-head loading-head"><h2>${title}</h2></div>` : ""}
       <button class="more-button">${icon("more")}</button>
       <div class="loader-stage" aria-hidden="true">
-        <div class="loader-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="loader-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
       </div>
       <p>${text}</p>
     </section>
@@ -832,6 +991,11 @@ function loadingPanel(text = "需求确认中 ...", title = "") {
 
 function sortedCandidates() {
   return [...candidates].sort((left, right) => right.score - left.score);
+}
+
+function resultSearchTitle(count) {
+  const keyword = selectedJobTitle();
+  return `${keyword}匹配的${count}份简历`;
 }
 
 function syncQuestionCard() {
@@ -848,14 +1012,15 @@ function syncQuestionCard() {
 
 function resultsPanel() {
   if (isAgentFlow()) return agentInviteResultsPanel();
+  const resultCandidates = sortedCandidates();
   return `
     <section class="result-panel results ${isAgentFlow() ? "invite-results" : ""}">
       <div class="result-head">
-        ${isAgentFlow() ? `<h2>${escapeHtml(jobTitle())}的匹配简历</h2>` : ""}
+        <h2>${escapeHtml(resultSearchTitle(resultCandidates.length))}</h2>
         <button class="more-button">${icon("more")}</button>
       </div>
       <div class="candidate-stream">
-        ${sortedCandidates().map((candidate, index) => candidateCard(candidate, index, isAgentFlow())).join("")}
+        ${resultCandidates.map((candidate, index) => candidateCard(candidate, index, isAgentFlow())).join("")}
       </div>
     </section>
   `;
@@ -897,7 +1062,7 @@ function candidateCard(candidate, index, inviteMode = false) {
       <div class="candidate-body">
         <div class="candidate-summary">
           <div class="candidate-avatar">
-            <img src="${candidatePhoto}" alt="" />
+            <img src="${candidateAvatar(index)}" alt="" />
             <span><i class="iconfont icon-male"></i></span>
           </div>
           <div class="candidate-info">
@@ -934,7 +1099,7 @@ function candidateCard(candidate, index, inviteMode = false) {
             </div>
             <div class="candidate-actions">
               <button class="interview-button">发起面试</button>
-              <button class="ai-invite-button"><span>✦</span>AI 邀约</button>
+              <button class="ai-invite-button"><i class="iconfont icon-magic"></i>AI 邀约</button>
               <button class="resume-more-button" aria-label="更多"><i class="iconfont icon-more"></i></button>
             </div>
           </div>
@@ -952,6 +1117,7 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = state.view === "home" ? home() : fastPage();
   bindEvents();
+  if (state.view !== "home") scrollChatToLatest();
   if (state.phase === "questionsTyping") {
     startIntroTypewriter();
   }
@@ -972,20 +1138,162 @@ function bindEvents() {
   document.querySelectorAll("[data-hire]").forEach(button => {
     button.addEventListener("click", () => {
       state.hireType = button.dataset.hire;
-      render();
+      const segment = button.closest(".segment");
+      if (segment) {
+        segment.dataset.active = state.hireType === "社招" ? "0" : "1";
+        segment.querySelectorAll("[data-hire]").forEach(item => {
+          item.classList.toggle("active", item.dataset.hire === state.hireType);
+        });
+      }
     });
   });
 
   const prompt = document.getElementById("homePrompt");
   if (prompt) {
-    prompt.addEventListener("input", event => {
-      state.prompt = event.target.value;
+    const syncHomePromptValue = (textarea, caretPosition = textarea.value.length, shouldRender = true) => {
+      state.prompt = textarea.value;
+      if (state.hashToken) {
+        const tokenStillExists = state.prompt.slice(state.hashToken.start, state.hashToken.end) === state.hashToken.text;
+        if (!tokenStillExists) state.hashToken = null;
+      }
+      const hashIndex = state.prompt.lastIndexOf("#");
+      const hashText = hashIndex >= 0 ? state.prompt.slice(hashIndex + 1) : "";
+      const shouldOpenHashPicker = hashIndex >= 0 && !/\s/.test(hashText);
+      state.hashPickerOpen = shouldOpenHashPicker;
+      state.hashPickerQuery = shouldOpenHashPicker ? hashText : "";
+      if (shouldOpenHashPicker) {
+        updateHashPickerPosition(textarea, hashIndex);
+      }
       const startFastButton = document.getElementById("startFast");
       if (startFastButton) {
         startFastButton.classList.toggle("send-button-active", state.prompt.trim().length > 0);
       }
+      if (!shouldRender) return;
+      render();
+      requestAnimationFrame(() => {
+        const nextHashInput = document.getElementById("hashJobInput");
+        const nextPrompt = document.getElementById("homePrompt");
+        if (nextHashInput) {
+          nextHashInput.focus();
+          nextHashInput.selectionStart = nextHashInput.selectionEnd = nextHashInput.value.length;
+        } else if (nextPrompt) {
+          nextPrompt.focus();
+          const nextCaret = Math.min(caretPosition, state.prompt.length);
+          nextPrompt.selectionStart = nextPrompt.selectionEnd = nextCaret;
+        }
+      });
+    };
+    prompt.addEventListener("compositionstart", () => {
+      homePromptComposing = true;
+    });
+    prompt.addEventListener("compositionend", event => {
+      homePromptComposing = false;
+      syncHomePromptValue(event.target, event.target.selectionStart || event.target.value.length);
+    });
+    prompt.addEventListener("input", event => {
+      const caretPosition = event.target.selectionStart || event.target.value.length;
+      if (homePromptComposing || event.isComposing) {
+        syncHomePromptValue(event.target, caretPosition, false);
+        return;
+      }
+      syncHomePromptValue(event.target, caretPosition);
+    });
+    prompt.addEventListener("keydown", event => {
+      if (!state.hashToken || event.key !== "Backspace") return;
+      const start = event.target.selectionStart || 0;
+      const end = event.target.selectionEnd || start;
+      const tokenStart = state.hashToken.start;
+      const tokenEnd = state.hashToken.end;
+      const touchesToken = start === end
+        ? start > tokenStart && start <= tokenEnd
+        : start < tokenEnd && end > tokenStart;
+      if (!touchesToken) return;
+      event.preventDefault();
+      state.prompt = `${state.prompt.slice(0, tokenStart)}${state.prompt.slice(tokenEnd)}`;
+      state.hashToken = null;
+      state.hashPickerOpen = false;
+      state.hashPickerQuery = "";
+      render();
+      requestAnimationFrame(() => {
+        const nextPrompt = document.getElementById("homePrompt");
+        if (nextPrompt) {
+          nextPrompt.focus();
+          nextPrompt.selectionStart = nextPrompt.selectionEnd = tokenStart;
+        }
+      });
     });
   }
+
+  const hashInput = document.getElementById("hashJobInput");
+  if (hashInput) {
+    const syncHashInputValue = value => {
+      const hashIndex = state.prompt.lastIndexOf("#");
+      state.hashPickerQuery = value;
+      state.prompt = hashIndex >= 0
+        ? `${state.prompt.slice(0, hashIndex + 1)}${value}`
+        : `#${value}`;
+      render();
+      requestAnimationFrame(() => {
+        const nextHashInput = document.getElementById("hashJobInput");
+        if (nextHashInput) {
+          nextHashInput.focus();
+          nextHashInput.selectionStart = nextHashInput.selectionEnd = nextHashInput.value.length;
+        }
+      });
+    };
+    hashInput.addEventListener("compositionstart", () => {
+      hashInputComposing = true;
+    });
+    hashInput.addEventListener("compositionend", event => {
+      hashInputComposing = false;
+      syncHashInputValue(event.target.value);
+    });
+    hashInput.addEventListener("input", event => {
+      if (hashInputComposing || event.isComposing) {
+        return;
+      }
+      syncHashInputValue(event.target.value);
+    });
+    hashInput.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        state.hashPickerOpen = false;
+        state.hashPickerQuery = "";
+        render();
+      }
+    });
+  }
+
+  document.querySelectorAll("[data-hash-job]").forEach(button => {
+    button.addEventListener("click", () => {
+      const selected = button.dataset.hashJob || "";
+      const hashIndex = state.prompt.lastIndexOf("#");
+      const tokenX = state.hashPickerX;
+      const tokenY = state.hashPickerY;
+      const tokenStart = Math.max(0, hashIndex);
+      const beforeToken = hashIndex >= 0 ? state.prompt.slice(0, hashIndex) : "";
+      const afterToken = hashIndex >= 0 ? state.prompt.slice(hashIndex + state.hashPickerQuery.length + 1) : "";
+      const spacer = afterToken.startsWith(" ") ? "" : " ";
+      state.prompt = `${beforeToken}${selected}${spacer}${afterToken}`;
+      state.hashToken = {
+        text: selected,
+        start: tokenStart,
+        end: tokenStart + selected.length,
+        x: tokenX,
+        y: tokenY
+      };
+      state.hashPickerOpen = false;
+      state.hashPickerQuery = "";
+      render();
+      requestAnimationFrame(() => {
+        const nextPrompt = document.getElementById("homePrompt");
+        if (nextPrompt) {
+          nextPrompt.focus();
+          const caretAfterToken = state.hashToken ? state.hashToken.end + spacer.length : state.prompt.length;
+          nextPrompt.selectionStart = nextPrompt.selectionEnd = caretAfterToken;
+        }
+      });
+    });
+  });
 
   const subtitle = document.querySelector(".subtitle-typing");
   if (subtitle) {
@@ -1072,6 +1380,16 @@ function bindEvents() {
     backAutomationManage.addEventListener("click", () => {
       switchAutomationView("manage");
     });
+  }
+
+  const automationNameInput = document.getElementById("automationNameInput");
+  if (automationNameInput) {
+    automationNameInput.addEventListener("input", event => {
+      state.automationName = event.target.value;
+    });
+    automationNameInput.addEventListener("focus", event => {
+      event.target.select();
+    }, { once: true });
   }
 
   const cancelAutomationCreate = document.getElementById("cancelAutomationCreate");
