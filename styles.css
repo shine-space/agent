@@ -140,7 +140,7 @@ button {
   -webkit-text-fill-color: transparent;
   display: inline-block;
   font-weight: 700;
-  animation: brand-light-wave 4s linear infinite;
+  animation: brand-light-wave 7s linear infinite;
 }
 
 .subtitle {
@@ -1080,7 +1080,7 @@ button {
   height: 58px;
   display: flex;
   align-items: center;
-  padding: 13px 16px;
+  padding: 13px 16px 13px 10px;
   background: var(--bg);
 }
 
@@ -1894,12 +1894,12 @@ button {
 
 .invite-card-top div {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   margin-left: auto;
 }
 
 .invite-card-top button {
-  color: var(--brand);
+  color: var(--blue);
   background: transparent;
   font-size: 13px;
   line-height: 22px;
@@ -1926,7 +1926,7 @@ button {
 }
 
 .invite-card .viewed-tag-green {
-  color: var(--brand);
+  color: var(--blue);
   background: var(--brand-light);
 }
 
@@ -2033,7 +2033,7 @@ button {
   color: var(--text);
   font-size: 12px;
   line-height: 20px;
-  padding-top:2px;
+  padding-top:4px;
 }
 
 .candidate-meta span + span::before {
@@ -2346,6 +2346,7 @@ button {
   0% {
     background-position: 150% center;
   }
+  57.14%,
   100% {
     background-position: -50% center;
   }

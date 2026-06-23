@@ -15,6 +15,7 @@ function shuffleList(list) {
 }
 
 const candidateAvatarOrder = shuffleList(userAvatars);
+const resultsRevealDelay = 3000;
 
 function candidateAvatar(index) {
   return candidateAvatarOrder[index % candidateAvatarOrder.length];
@@ -277,10 +278,10 @@ function scheduleAgentTaskAdvance() {
       scheduleAgentTaskAdvance();
       return;
     }
-    state.phase = "results";
     state.agentTaskStep = 4;
     state.agentCallExpanded = false;
     render();
+    schedulePhase("results", resultsRevealDelay);
   }, 4000);
 }
 
@@ -344,7 +345,7 @@ function answerSummary() {
 }
 
 function introCopy() {
-  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${jobTitle()}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了`;
+  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了`;
 }
 
 function profileCopy() {
@@ -686,7 +687,7 @@ function automationCreatePanel() {
 }
 
 function fastPage() {
-  const title = escapeHtml(jobTitle());
+  const title = escapeHtml(selectedJobTitle());
   return `
     <main class="fast-view phase-${state.phase} ${isAgentFlow() ? "agent-flow" : "fast-flow"}">
       <header class="app-header">
@@ -706,7 +707,7 @@ function fastPage() {
 
 function chatThread() {
   const prompt = escapeHtml(submittedPrompt());
-  const title = escapeHtml(jobTitle());
+  const title = escapeHtml(selectedJobTitle());
   if (isAgentFlow()) return agentChatThread(prompt, title);
   if (state.phase === "confirming") {
     return `
@@ -1030,7 +1031,7 @@ function agentInviteResultsPanel() {
   return `
     <section class="result-panel results invite-results">
       <div class="result-head">
-        <h2>${escapeHtml(jobTitle())}的已邀约候选人</h2>
+        <h2>${escapeHtml(selectedJobTitle())}的已邀约候选人</h2>
         <button class="more-button">${icon("more")}</button>
       </div>
       <div class="candidate-stream invite-stream">
@@ -1516,7 +1517,7 @@ function bindEvents() {
       clearFlowTimer();
       state.phase = "resultsLoading";
       render();
-      schedulePhase("results", 1000);
+      schedulePhase("results", resultsRevealDelay);
     });
   }
 
