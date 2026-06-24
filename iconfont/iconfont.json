@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "47916651",
+      "name": "enter-send",
+      "font_class": "enter-send",
+      "unicode": "e7df",
+      "unicode_decimal": 59359
+    },
+    {
       "icon_id": "47900728",
       "name": "star-filled",
       "font_class": "star-filled",
