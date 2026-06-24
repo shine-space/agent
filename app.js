@@ -424,7 +424,7 @@ function topActions() {
 
 function homeSubtitle() {
   return state.mode === "Agent全流程"
-    ? "我能找到合适的简历并电话联系Ta沟通意向～"
+    ? "AI精准匹配人才，Agent自动化全流程面试邀约"
     : "岗位智能画像快速匹配简历";
 }
 
