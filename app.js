@@ -697,7 +697,7 @@ function automationCreatePanel() {
     </div>
     <footer class="automation-create-footer">
       <button class="text-action" id="cancelAutomationCreate">取消</button>
-      <button class="primary-pill" id="confirmAutomationCreate">创建 <i class="iconfont icon-arrow"></i></button>
+      <button class="primary-pill" id="confirmAutomationCreate">创建 <i class="iconfont icon-enter-send"></i></button>
     </footer>
   `;
 }
