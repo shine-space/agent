@@ -1,4 +1,5 @@
 const mascot = "./assets/mascot.svg";
+const mascotLottie = "./assets/mascot-wink.lottie.json";
 const avatar = "./assets/avatar.svg";
 const bannerIcon = "./assets/banner-icon.svg";
 const meetingIcon = "./assets/meeting.svg";
@@ -16,6 +17,7 @@ function shuffleList(list) {
 
 const candidateAvatarOrder = shuffleList(userAvatars);
 const resultsRevealDelay = 3000;
+const hashTokenGap = "    ";
 
 function candidateAvatar(index) {
   return candidateAvatarOrder[index % candidateAvatarOrder.length];
@@ -522,7 +524,7 @@ function home() {
         </div>
         <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}" style="--subtitle-chars:${subtitle.length}; --subtitle-steps:${subtitle.length};">${subtitle}</p>
         <div class="input-card ${state.dropdown ? "focused" : ""}">
-          <img class="mascot" src="${mascot}" alt="" />
+          ${mascotAnimation()}
           <textarea id="homePrompt" class="${state.hashToken ? "has-hash-token" : ""}" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
           ${hashSelectedToken()}
           ${hashJobPicker()}
@@ -543,6 +545,20 @@ function home() {
       </section>
       ${state.automationModal ? automationModal() : ""}
     </main>
+  `;
+}
+
+function mascotAnimation() {
+  return `
+    <div class="mascot mascot-lottie" data-lottie-src="${mascotLottie}" aria-hidden="true">
+      <img src="${mascot}" alt="" />
+      <svg viewBox="0 0 155 94" focusable="false">
+        <ellipse class="mascot-wink-cover" cx="124.3" cy="25.2" rx="8" ry="11" />
+        <path class="mascot-wink-line" d="M119.2 25 C121 26.8 122.4 30.2 123.8 28.1 C125.5 30.1 127.3 27.3 129.2 25.5" />
+        <path class="mascot-wink-line mascot-wink-lash" d="M128 22.8 L130.6 20.5" />
+        <path class="mascot-heart" d="M134.5 20.61 C132.96 19.62 131.64 20.28 131.86 18.74 C132.08 17.2 131.53 16.32 133.07 16.54 C134.28 16.65 133.9 16.76 134.5 17.915 C135.1 16.76 135.72 16.32 135.93 16.54 C137.47 16.32 136.92 17.2 137.14 18.74 C137.36 20.28 136.04 19.62 134.5 20.61 Z" />
+      </svg>
+    </div>
   `;
 }
 
@@ -902,7 +918,7 @@ function questionForm() {
       </div>
       <div class="question-actions">
         <button id="cancelQuestions" class="text-action">取消</button>
-        <button id="submitQuestions" class="primary-pill ${canSubmit ? "" : "disabled"}">提交 <i class="iconfont icon-arrow"></i></button>
+        <button id="submitQuestions" class="primary-pill ${canSubmit ? "" : "disabled"}">提交 <i class="iconfont icon-enter-send"></i></button>
       </div>
     </section>
   `;
@@ -935,7 +951,7 @@ function profileConfirmCard(withActions = true, extraClass = "") {
       ${withActions ? `
         <div class="question-actions">
           <button id="cancelProfile" class="text-action">取消</button>
-          <button id="confirmProfile" class="primary-pill">提交 <i class="iconfont icon-arrow"></i></button>
+          <button id="confirmProfile" class="primary-pill">提交 <i class="iconfont icon-enter-send"></i></button>
         </div>
       ` : ""}
     </section>
@@ -1205,12 +1221,13 @@ function bindEvents() {
       const end = event.target.selectionEnd || start;
       const tokenStart = state.hashToken.start;
       const tokenEnd = state.hashToken.end;
+      const tokenGapEnd = tokenEnd + (state.prompt.slice(tokenEnd).match(/^\s*/)?.[0].length || 0);
       const touchesToken = start === end
-        ? start > tokenStart && start <= tokenEnd
+        ? start > tokenStart && start <= tokenGapEnd
         : start < tokenEnd && end > tokenStart;
       if (!touchesToken) return;
       event.preventDefault();
-      state.prompt = `${state.prompt.slice(0, tokenStart)}${state.prompt.slice(tokenEnd)}`;
+      state.prompt = `${state.prompt.slice(0, tokenStart)}${state.prompt.slice(tokenEnd).replace(/^\s+/, "")}`;
       state.hashToken = null;
       state.hashPickerOpen = false;
       state.hashPickerQuery = "";
@@ -1273,8 +1290,8 @@ function bindEvents() {
       const tokenStart = Math.max(0, hashIndex);
       const beforeToken = hashIndex >= 0 ? state.prompt.slice(0, hashIndex) : "";
       const afterToken = hashIndex >= 0 ? state.prompt.slice(hashIndex + state.hashPickerQuery.length + 1) : "";
-      const spacer = afterToken.startsWith(" ") ? "" : " ";
-      state.prompt = `${beforeToken}${selected}${spacer}${afterToken}`;
+      const normalizedAfterToken = afterToken.replace(/^\s+/, "");
+      state.prompt = `${beforeToken}${selected}${hashTokenGap}${normalizedAfterToken}`;
       state.hashToken = {
         text: selected,
         start: tokenStart,
@@ -1289,7 +1306,7 @@ function bindEvents() {
         const nextPrompt = document.getElementById("homePrompt");
         if (nextPrompt) {
           nextPrompt.focus();
-          const caretAfterToken = state.hashToken ? state.hashToken.end + spacer.length : state.prompt.length;
+          const caretAfterToken = state.hashToken ? state.hashToken.end + hashTokenGap.length : state.prompt.length;
           nextPrompt.selectionStart = nextPrompt.selectionEnd = caretAfterToken;
         }
       });

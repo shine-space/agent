@@ -3,7 +3,7 @@
   --blue: #1D5CFE;
   --brand-light: #ebf0fc;
   --text: rgba(0, 0, 0, 0.9);
-  --secondary: rgba(0, 0, 0, 0.75);
+  --secondary: rgba(0, 0, 0, 0.7);
   --muted: rgba(0, 0, 0, 0.4);
   --line: #e7e7e7;
   --border: #dcdcdc;
@@ -168,8 +168,53 @@ button {
   z-index: 3;
   width: 155px;
   height: 94px;
-  object-fit: contain;
   pointer-events: none;
+}
+
+.mascot-lottie img,
+.mascot-lottie svg {
+  position: absolute;
+  inset: 0;
+  width: 155px;
+  height: 94px;
+}
+
+.mascot-lottie img {
+  object-fit: contain;
+}
+
+.mascot-lottie svg {
+  overflow: visible;
+}
+
+.mascot-wink-cover {
+  fill: #191a19;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-wink-cover 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+.mascot-wink-line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  animation: mascot-wink-line 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+.mascot-wink-lash {
+  stroke-width: 1.35;
+}
+
+.mascot-heart {
+  fill: #fa6b8f;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-heart-pop 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
 }
 
 .input-card {
@@ -1119,8 +1164,8 @@ button {
 
 .mode-tag {
   flex: 0 0 auto;
-  padding: 1px 8px;
-  border-radius: 8px;
+  padding: 0px 6px;
+  border-radius: 4px;
   background: #E8EFFF;
   color: var(--blue);
   font-size: 12px;
@@ -1150,11 +1195,11 @@ button {
 }
 
 .phase-resultsLoading .chat-column {
-  bottom: 190px;
+  bottom: 152px;
 }
 
 .phase-results .chat-column {
-  bottom: 190px;
+  bottom: 152px;
 }
 
 .bubble {
@@ -1212,7 +1257,7 @@ button {
 .agent-task-item.open {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .agent-task-head {
@@ -1265,6 +1310,7 @@ button {
 }
 
 .agent-task-detail {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1277,10 +1323,13 @@ button {
 }
 
 .agent-task-detail p {
+  width: 100%;
   margin: 0;
+  white-space: normal;
 }
 
 .agent-task-detail button {
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1290,6 +1339,7 @@ button {
   color: var(--text);
   font-size: 12px;
   line-height: 20px;
+  white-space: nowrap;
 }
 .agent-task-detail .icon-chevron-right {
   font-size: 12px;
@@ -1321,7 +1371,7 @@ button {
   width: 14px;
   height: 14px;
   border: 2px solid #c8d7ff;
-  border-top-color: var(--brand);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1339,7 +1389,7 @@ button {
 
 .qa-answer-card,
 .profile-confirm-card {
-  padding: 14px 16px;
+  padding: 12px;
   border-radius: 12px;
   background: #fff;
   border: 1px solid var(--line);
@@ -1473,7 +1523,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #fff;
@@ -1533,13 +1583,13 @@ button {
 }
 
 .profile-confirm-card dt {
-  color: var(--text);
+  color: var(--secondary);
 }
 
 .profile-confirm-card dd {
   min-width: 0;
   margin: 0;
-  color: var(--secondary);
+  color: var(—text);
 }
 
 .followup-card {
@@ -1785,7 +1835,7 @@ button {
   display: flex;
   align-items: center;
   backdrop-filter: saturate(180%) blur(6px);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.8);
   z-index: 2;
 }
 
@@ -1817,7 +1867,7 @@ button {
   position: relative;
   flex: 0 0 auto;
   width: 100%;
-  min-width: 820px;
+  min-width: 760px;
   padding: 20px;
   border: 1px solid var(--line);;
   border-radius: 12px;
@@ -1829,7 +1879,7 @@ button {
 
 
 .candidate-card:hover {
-  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
 }
 
@@ -2008,7 +2058,7 @@ button {
 }
 
 .viewed-tag {
-  padding: 1px 6px;
+  padding: 0px 6px;
   border-radius: 4px;
   color: var(--blue);
   background: var(--brand-light);
@@ -2053,10 +2103,10 @@ button {
 }
 
 .radar-icon {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: block;
-  flex: 0 0 24px;
+  flex: 0 0 22px;
   object-fit: contain;
 }
 
@@ -2069,7 +2119,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: 10px 0 10px 0;
   background: linear-gradient(90deg, #efebfe, #fff);
   white-space: nowrap;
@@ -2107,7 +2157,7 @@ button {
 .candidate-detail-grid {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
+  gap: 8px;
 }
 
 .timeline {
@@ -2203,7 +2253,7 @@ button {
 }
 
 .candidate-tags-list span {
-  padding: 1px 6px;
+  padding: 0px 6px;
   border-radius: 4px;
   color: var(--text);
   background: var(--soft);
@@ -2352,6 +2402,52 @@ button {
   }
 }
 
+@keyframes mascot-wink-cover {
+  0%,
+  52%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(1, 0.3);
+  }
+  58%,
+  62% {
+    opacity: 1;
+    transform: scale(1.12, 1);
+  }
+}
+
+@keyframes mascot-wink-line {
+  0%,
+  52%,
+  68%,
+  100% {
+    opacity: 0;
+  }
+  58%,
+  62% {
+    opacity: 1;
+  }
+}
+
+@keyframes mascot-heart-pop {
+  0%,
+  52%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-12deg) scale(0.65);
+  }
+  58% {
+    opacity: 0.92;
+    transform: translate(3px, -4px) rotate(-12deg) scale(1.15);
+  }
+  62% {
+    opacity: 0.7;
+    transform: translate(4px, -6px) rotate(-12deg) scale(0.9);
+  }
+}
+
 @keyframes modal-rise {
   from {
     opacity: 0;
@@ -2414,16 +2510,21 @@ button {
     opacity: 0.18;
   }
 }
-
-@media (max-width: 1440px) {
+@media (max-width: 1680px) {
   .fast-view {
     --left-column-width: max(20vw, 360px);
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1440px) {
   .fast-view {
     --left-column-width: max(20vw, 320px);
+  }
+}
+
+@media (max-width: 1280px) {
+  .fast-view {
+    --left-column-width: max(20vw, 300px);
   }
 }
 
