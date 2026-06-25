@@ -351,6 +351,34 @@ button {
   line-height: 22px;
 }
 
+.home-placeholder {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 1;
+  height: 22px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 22px;
+  pointer-events: none;
+}
+
+.input-card.has-content .home-placeholder {
+  display: none;
+}
+
+.home-placeholder span {
+  position: absolute;
+  inset: 0 auto auto 0;
+  max-width: 100%;
+  opacity: 0;
+  white-space: nowrap;
+  animation: home-placeholder-cycle 12s ease-in-out infinite;
+  animation-delay: calc(var(--placeholder-index) * 4s);
+}
+
 .input-card textarea.has-hash-token {
   color: var(--text);
   caret-color: var(--text);
@@ -2447,6 +2475,23 @@ button {
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes home-placeholder-cycle {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  3%,
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  33.33%,
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
   }
 }
 

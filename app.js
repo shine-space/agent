@@ -511,6 +511,25 @@ function hashSelectedToken() {
   `;
 }
 
+function homePlaceholder() {
+  const placeholders = state.hireType === "校招"
+    ? [
+        "请输入您对候选人的详细诉求，输入#选择岗位",
+        "找产品经理实习生，2027年毕业，有AI项目经验，985优先",
+        "找技术研究-机器学习方向，2027年毕业，有开源项目贡献经验，工作地点深圳"
+      ]
+    : [
+        "请输入您对候选人的详细诉求，输入#选择岗位",
+        "找应用研究岗位，有AI大模型项目经验，985优先，能英语沟通",
+        "找游戏3D设计师，5+年工作经验，985美术专业，3A项目优先"
+      ];
+  return `
+    <div class="home-placeholder" aria-hidden="true">
+      ${placeholders.map((text, index) => `<span style="--placeholder-index:${index}">${escapeHtml(text)}</span>`).join("")}
+    </div>
+  `;
+}
+
 function home() {
   const subtitle = homeSubtitle();
   return `
@@ -523,9 +542,10 @@ function home() {
           <strong>JobAssistant</strong>
         </div>
         <p class="subtitle ${state.subtitlePlayed ? "subtitle-static" : "subtitle-typing"}" style="--subtitle-chars:${subtitle.length}; --subtitle-steps:${subtitle.length};">${subtitle}</p>
-        <div class="input-card ${state.dropdown ? "focused" : ""}">
+        <div class="input-card ${state.dropdown ? "focused" : ""} ${state.prompt.trim() ? "has-content" : ""}">
           ${mascotAnimation()}
-          <textarea id="homePrompt" class="${state.hashToken ? "has-hash-token" : ""}" placeholder="请输入您对候选人的详细诉求，输入#选择岗位">${state.prompt}</textarea>
+          <textarea id="homePrompt" class="${state.hashToken ? "has-hash-token" : ""}" placeholder="">${state.prompt}</textarea>
+          ${homePlaceholder()}
           ${hashSelectedToken()}
           ${hashJobPicker()}
           <div class="input-footer">
@@ -1158,14 +1178,9 @@ function render() {
 function bindEvents() {
   document.querySelectorAll("[data-hire]").forEach(button => {
     button.addEventListener("click", () => {
+      if (state.hireType === button.dataset.hire) return;
       state.hireType = button.dataset.hire;
-      const segment = button.closest(".segment");
-      if (segment) {
-        segment.dataset.active = state.hireType === "社招" ? "0" : "1";
-        segment.querySelectorAll("[data-hire]").forEach(item => {
-          item.classList.toggle("active", item.dataset.hire === state.hireType);
-        });
-      }
+      render();
     });
   });
 
