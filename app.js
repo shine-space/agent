@@ -424,8 +424,8 @@ function topActions() {
 
 function homeSubtitle() {
   return state.mode === "Agent全流程"
-    ? "AI精准匹配人才，Agent自动化全流程面试邀约"
-    : "岗位智能画像快速匹配简历";
+    ? "我精准筛选适配人才，Agent自动完成全流程面试邀约工作"
+    : "我凭借智能岗位画像，快速精准匹配简历";
 }
 
 function hashPickerSuggestions() {
@@ -551,6 +551,10 @@ function home() {
 function mascotAnimation() {
   return `
     <div class="mascot mascot-lottie" data-lottie-src="${mascotLottie}" aria-hidden="true">
+      <div class="mascot-tip">
+        <span>等你问我</span>
+        <span>坐等派活</span>
+      </div>
       <img src="${mascot}" alt="" />
       <svg viewBox="0 0 155 94" focusable="false">
         <ellipse class="mascot-wink-cover" cx="124.3" cy="25.2" rx="8" ry="11" />

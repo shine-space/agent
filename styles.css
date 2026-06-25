@@ -171,6 +171,62 @@ button {
   pointer-events: none;
 }
 
+.mascot-tip {
+  position: absolute;
+  left: 76px;
+  bottom: calc(100% + 20px);
+  z-index: 4;
+  min-width: 68px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid #e2e2e2;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  animation: mascot-tip-cycle 11.2s cubic-bezier(0.18, 1.35, 0.28, 1) infinite;
+}
+
+.mascot-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid #e2e2e2;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.mascot-tip span {
+  position: absolute;
+  inset: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  opacity: 0;
+  animation: mascot-tip-text 22.4s step-end infinite;
+}
+
+.mascot-tip span:first-child {
+  animation-delay: 0s;
+}
+
+.mascot-tip span:last-child {
+  animation-delay: 11.2s;
+}
+
 .mascot-lottie img,
 .mascot-lottie svg {
   position: absolute;
@@ -2391,6 +2447,36 @@ button {
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes mascot-tip-cycle {
+  0%,
+  44.64%,
+  100% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  46.43%,
+  48.21%,
+  96.43% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  47.32% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+
+@keyframes mascot-tip-text {
+  0%,
+  49.99% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
   }
 }
 
