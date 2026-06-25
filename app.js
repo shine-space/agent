@@ -424,7 +424,7 @@ function topActions() {
 
 function homeSubtitle() {
   return state.mode === "Agent全流程"
-    ? "我精准筛选适配人才，Agent自动完成全流程面试邀约工作"
+    ? "我精准筛选适配人才，Agent自动完成全流程面试邀约"
     : "我凭借智能岗位画像，快速精准匹配简历";
 }
 
