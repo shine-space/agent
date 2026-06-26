@@ -563,6 +563,7 @@ function home() {
           </div>
         </div>
       </section>
+      <a class="home-credit" href="http://ttian.top/" target="_blank" rel="noopener noreferrer">By TTian.top</a>
       ${state.automationModal ? automationModal() : ""}
     </main>
   `;

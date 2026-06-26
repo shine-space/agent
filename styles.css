@@ -62,6 +62,23 @@ button {
   background-size: 200px 200px;
 }
 
+.home-credit {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  text-decoration: none;
+  transform: translateX(-50%);
+}
+
+.home-credit:hover {
+  color: var(--blue);
+}
+
 .top-actions {
   position: absolute;
   top: 13px;
