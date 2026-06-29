@@ -337,12 +337,64 @@ function pageTaskName() {
   return isAgentFlow() ? "简历匹配邀约" : "简历匹配";
 }
 
+function questionSet() {
+  const title = selectedJobTitle();
+  if (/UI|交互|视觉|体验|设计/.test(title)) {
+    return [
+      { title: "1、作品集或设计方向偏好？", label: "设计方向", options: ["B端复杂系统", "C端增长体验"] },
+      { title: "2、核心设计能力要求？", label: "设计能力", options: ["交互原型与用户研究", "视觉规范与动效表达"] }
+    ];
+  }
+  if (/Android|iOS|前端|客户端|性能优化/.test(title)) {
+    return [
+      { title: "1、平台或技术栈偏好？", label: "技术栈要求", options: ["Android / iOS 原生", "React / Vue / 跨端"] },
+      { title: "2、关键项目经验要求？", label: "项目经验", options: ["性能优化与稳定性", "复杂业务架构经验"] }
+    ];
+  }
+  if (/产品|运营|策略/.test(title)) {
+    return [
+      { title: "1、业务方向偏好？", label: "业务方向", options: ["AI产品 / 工具平台", "增长 / 商业化"] },
+      { title: "2、核心能力要求？", label: "核心能力", options: ["数据分析与策略判断", "需求拆解与项目推进"] }
+    ];
+  }
+  if (/算法|机器学习|大数据|后端|测试|研发/.test(title)) {
+    return [
+      { title: "1、技术方向偏好？", label: "技术方向", options: ["分布式 / 高并发", "算法模型 / 数据处理"] },
+      { title: "2、工程经验要求？", label: "工程经验", options: ["大型项目落地经验", "开源或论文产出"] }
+    ];
+  }
+  return [
+    { title: "1、行业或业务背景偏好？", label: "业务背景", options: ["互联网产品经验", "企业服务经验"] },
+    { title: "2、核心能力要求？", label: "核心能力", options: ["复杂项目推进", "跨团队协作"] }
+  ];
+}
+
+function majorRequirement() {
+  const title = selectedJobTitle();
+  if (/UI|交互|视觉|体验|设计/.test(title)) {
+    return "视觉传达设计、交互设计、数字媒体艺术、工业设计、心理学、人机交互";
+  }
+  if (/Android|iOS|前端|客户端|性能优化/.test(title)) {
+    return "计算机科学与技术、软件工程、信息工程、网络工程、人工智能、电子信息";
+  }
+  if (/产品|运营|策略/.test(title)) {
+    return "计算机科学与技术、信息管理、工业工程、统计学、心理学、市场营销";
+  }
+  if (/算法|机器学习|大数据|后端|测试|研发/.test(title)) {
+    return "计算机科学与技术、软件工程、人工智能、数据科学、信息安全、自动化";
+  }
+  return "计算机科学与技术、信息管理、工业工程、心理学、统计学、相关业务专业";
+}
+
 function answerSummary() {
+  const questions = questionSet();
   const education = state.questionOne.trim();
   const language = state.questionTwo.trim();
   return {
-    education: education || "未填写",
-    language: language || "未填写"
+    firstLabel: questions[0].label,
+    secondLabel: questions[1].label,
+    first: education || questions[0].options[0] || "未填写",
+    second: language || questions[1].options[0] || "未填写"
   };
 }
 
@@ -350,8 +402,16 @@ function introCopy() {
   return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了`;
 }
 
+function profileIntroCopy() {
+  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n我先为您生成理想候选人画像，请确认搜索条件是否需要调整：`;
+}
+
+function questionPromptCopy() {
+  return "画像已确认。为了让匹配更精准，我再补充确认两个筛选条件：";
+}
+
 function profileCopy() {
-  return "好的，信息充分！我为您生成候选人画像。请确认您的搜索条件是否需要调整：";
+  return "理想候选人画像已生成，请确认您的搜索条件是否需要调整：";
 }
 
 function startTypewriter(targetId, nextPhase) {
@@ -749,6 +809,7 @@ function fastPage() {
 function chatThread() {
   const prompt = escapeHtml(submittedPrompt());
   const title = escapeHtml(selectedJobTitle());
+  const profileIntro = escapeHtml(profileIntroCopy()).replace(/\n/g, "<br />");
   if (isAgentFlow()) return agentChatThread(prompt, title);
   if (state.phase === "confirming") {
     return `
@@ -759,42 +820,36 @@ function chatThread() {
   }
 
   if (state.phase === "questionsTyping") {
-    const copy = escapeHtml(introCopy());
+    const copy = escapeHtml(questionPromptCopy());
     return `
-      <aside class="chat-column">
+      <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
+        <div class="assistant-copy">${profileIntro}</div>
+        ${profileConfirmCard(false, "profile-summary-card")}
         <div class="assistant-copy typewriter-fast" id="introTypewriter" data-text="${copy}"></div>
       </aside>
     `;
   }
 
   if (state.phase === "questions") {
-    const copy = escapeHtml(introCopy()).replace(/\n/g, "<br />");
+    const copy = escapeHtml(questionPromptCopy()).replace(/\n/g, "<br />");
     return `
-      <aside class="chat-column">
+      <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
-        <div class="assistant-copy">${copy}</div>
+        <div class="assistant-copy">${profileIntro}</div>
+        ${profileConfirmCard(false, "profile-summary-card")}
+        <div class="assistant-copy result-copy">${copy}</div>
         <div class="waiting"><span></span>等待您的回答</div>
       </aside>
     `;
   }
 
   if (state.phase === "profileTyping" || state.phase === "profile") {
-    const answers = answerSummary();
     const isTyping = state.phase === "profileTyping";
     return `
       <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
-        <div class="assistant-copy">
-          根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。<br />
-          除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了
-        </div>
-        <div class="qa-answer-card">
-          <strong>1、院校或学历偏好？</strong>
-          <p>${escapeHtml(answers.education)}</p>
-          <strong>2、编程语言？</strong>
-          <p>${escapeHtml(answers.language)}</p>
-        </div>
+        <div class="assistant-copy">${profileIntro}</div>
         ${isTyping
           ? `<div class="assistant-copy result-copy typewriter-fast" id="profileTypewriter" data-text="${escapeHtml(profileCopy())}"></div>`
           : `<div class="assistant-copy result-copy">${profileCopy()}</div>`}
@@ -809,22 +864,29 @@ function chatThread() {
     return `
       <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
-        <div class="assistant-copy">
-          根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${title}】，并且有详细的技术要求。<br />
-          除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了
-        </div>
-        <div class="asked-summary">已询问2个问题 <i class="iconfont icon-chevron-down"></i></div>
+        <div class="assistant-copy">${profileIntro}</div>
         <div class="result-copy">候选人画像最终确认</div>
         ${profileConfirmCard(false, "profile-summary-card")}
-        <div class="result-copy">已为您匹配到${candidateCount}份候选人简历。</div>
-        <div class="matched-entry">
-          <span class="matched-icon"><img src="${bannerIcon}" alt="" /></span>
-          <div>
-            <strong>${title}的匹配简历</strong>
-            <p>${candidateCount}份简历</p>
-          </div>
-          <i class="iconfont icon-arrow"></i>
+        <div class="asked-summary">已补充2个筛选条件 <i class="iconfont icon-chevron-down"></i></div>
+        <div class="qa-answer-card">
+          <strong>1、${escapeHtml(answers.firstLabel)}？</strong>
+          <p>${escapeHtml(answers.first)}</p>
+          <strong>2、${escapeHtml(answers.secondLabel)}？</strong>
+          <p>${escapeHtml(answers.second)}</p>
         </div>
+        ${state.phase === "results"
+          ? `
+            <div class="result-copy">已为您匹配到${candidateCount}份候选人简历。</div>
+            <div class="matched-entry">
+              <span class="matched-icon"><img src="${bannerIcon}" alt="" /></span>
+              <div>
+                <strong>${title}的匹配简历</strong>
+                <p>${candidateCount}份简历</p>
+              </div>
+              <i class="iconfont icon-arrow"></i>
+            </div>
+          `
+          : `<div class="waiting"><span></span>正在匹配候选人</div>`}
       </aside>
     `;
   }
@@ -935,11 +997,12 @@ function agentChatThread(prompt, title) {
 
 function questionForm() {
   const canSubmit = state.questionOne.trim() || state.questionTwo.trim();
+  const questions = questionSet();
   return `
     <section class="question-card">
       <div class="questions">
-        ${questionBlock("1、院校或学历偏好？", "questionOne", ["985/211", "本科"], state.questionOne)}
-        ${questionBlock("2、编程语言？", "questionTwo", ["C、C++、STL", "本科"], state.questionTwo)}
+        ${questionBlock(questions[0].title, "questionOne", questions[0].options, state.questionOne)}
+        ${questionBlock(questions[1].title, "questionTwo", questions[1].options, state.questionTwo)}
       </div>
       <div class="question-actions">
         <button id="cancelQuestions" class="text-action">取消</button>
@@ -963,14 +1026,15 @@ function followupInput(stop = false) {
 function profileConfirmCard(withActions = true, extraClass = "") {
   const answers = answerSummary();
   const profileTitle = selectedJobTitle();
+  const majors = majorRequirement();
   return `
     <section class="profile-confirm-card ${extraClass}">
       <h2>理想候选人画像</h2>
       <dl>
         <div><dt>岗位名称：</dt><dd>${escapeHtml(profileTitle)}</dd></div>
-        <div><dt>学历要求：</dt><dd>${escapeHtml(answers.education)}</dd></div>
-        <div><dt>专业要求：</dt><dd>计算机科学与技术、软件工程、人工智能、数据科学、信息安全、物联网工程</dd></div>
-        <div><dt>编程语言：</dt><dd>${escapeHtml(answers.language)}</dd></div>
+        <div><dt>${escapeHtml(answers.firstLabel)}：</dt><dd>${escapeHtml(answers.first)}</dd></div>
+        <div><dt>专业要求：</dt><dd>${escapeHtml(majors)}</dd></div>
+        <div><dt>${escapeHtml(answers.secondLabel)}：</dt><dd>${escapeHtml(answers.second)}</dd></div>
         <div><dt>客户端开发：</dt><dd>客户端开发、调试技能</dd></div>
       </dl>
       ${withActions ? `
@@ -1005,7 +1069,9 @@ function agentLoadingText() {
 function mainPanel() {
   if (state.phase === "results") return resultsPanel();
   if (isAgentFlow()) return loadingPanel(agentLoadingText());
-  return loadingPanel(state.phase === "profileTyping" || state.phase === "profile" || state.phase === "resultsLoading" ? "大模型正在为您匹配简历 ..." : "需求确认中 ...");
+  if (state.phase === "profileTyping" || state.phase === "profile") return loadingPanel("候选人画像生成中 ...");
+  if (state.phase === "resultsLoading") return loadingPanel("大模型正在为您匹配简历 ...");
+  return loadingPanel("需求确认中 ...");
 }
 
 function questionBlock(title, key, options, value) {
@@ -1048,7 +1114,14 @@ function syncQuestionCard() {
   }
   document.querySelectorAll("[data-answer]").forEach(button => {
     const [key, value] = button.dataset.answer.split(":");
-    button.classList.toggle("selected", state[key] === value);
+    const selected = state[key] === value;
+    button.classList.toggle("selected", selected);
+    if (!selected && document.activeElement === button) button.blur();
+  });
+  document.querySelectorAll("[data-input]").forEach(input => {
+    const key = input.dataset.input;
+    const optionValues = Array.from(document.querySelectorAll(`[data-answer^="${key}:"]`)).map(button => button.dataset.answer.split(":").slice(1).join(":"));
+    if (optionValues.includes(state[key])) input.value = "";
   });
 }
 
@@ -1086,9 +1159,100 @@ function inviteCandidateCard(candidate, index) {
   return candidateCard(candidate, index, true);
 }
 
+function evidenceGroup(groups, index) {
+  return groups[index % groups.length];
+}
+
+function candidateEvidence(candidate, index) {
+  const title = selectedJobTitle();
+  if (/UI|交互|视觉|体验|设计/.test(title)) {
+    return evidenceGroup([
+      ["作品集匹配", "复杂系统", "项目完整度高", "信息架构", "设计规范", "跨端协作"],
+      ["用户研究", "体验洞察", "原型表达", "可用性测试", "业务理解", "设计落地"],
+      ["视觉一致性", "动效表达", "组件规范", "品牌理解", "细节打磨", "协作顺畅"],
+      ["C端增长", "转化优化", "数据意识", "活动设计", "快速迭代", "目标导向"]
+    ], index);
+  }
+  if (/Android|iOS|前端|客户端|性能优化/.test(title)) {
+    return evidenceGroup([
+      ["岗位经验连续", "稳定性建设", "技术栈贴合", "工程化经验", "跨端适配", "复杂项目"],
+      ["性能优化", "启动提速", "内存治理", "崩溃分析", "监控体系", "质量保障"],
+      ["架构拆分", "组件化", "CI流程", "代码规范", "多人协作", "交付稳定"],
+      ["平台适配", "端侧体验", "调试能力", "工具建设", "业务承接", "版本迭代"]
+    ], index);
+  }
+  if (/产品|运营|策略/.test(title)) {
+    return evidenceGroup([
+      ["业务理解强", "策略推进", "项目闭环经验", "用户洞察", "跨团队推进", "商业判断"],
+      ["数据分析", "指标拆解", "增长实验", "需求优先级", "复盘意识", "落地推进"],
+      ["AI产品", "工具平台", "场景抽象", "需求建模", "体验意识", "方案表达"],
+      ["运营策略", "用户分层", "活动策划", "转化提升", "资源协调", "目标管理"]
+    ], index);
+  }
+  if (/算法|机器学习|大数据|后端|测试|研发/.test(title)) {
+    return evidenceGroup([
+      ["工程经验扎实", "系统架构", "复杂项目经验", "性能优化", "数据处理", "稳定性建设"],
+      ["模型落地", "特征工程", "离线评估", "线上实验", "算法调优", "业务理解"],
+      ["高并发", "服务治理", "链路追踪", "容量规划", "容灾设计", "接口设计"],
+      ["测试体系", "自动化覆盖", "质量度量", "缺陷分析", "发布保障", "风险识别"]
+    ], index);
+  }
+  return evidenceGroup([
+    [candidate.skills[0] || "经验匹配", candidate.skills[1] || "能力贴合", "推荐优先", "履历完整", "沟通活跃", "岗位贴合"],
+    ["行业经验", "项目完整", "近期活跃", "沟通顺畅", "稳定履历", "可快速推进"],
+    ["核心能力", "业务理解", "协作经验", "成长潜力", "风险较低", "可进入初筛"],
+    ["经验连续", "能力互补", "目标匹配", "背景接近", "推荐跟进", "适配度高"]
+  ], index);
+}
+
+function candidateAnalysis(candidate, index) {
+  const title = selectedJobTitle();
+  if (/UI|交互|视觉|体验|设计/.test(title)) {
+    return evidenceGroup([
+      `候选人在${title}方向具备复杂系统和信息架构经验，作品集完整度较高，适合优先进入作品集复核。`,
+      `候选人的用户研究和体验洞察能力较突出，能够支撑从问题识别到原型验证的设计闭环。`,
+      `候选人在视觉规范、组件体系和动效表达上有连续实践，适合需要设计系统落地的团队。`,
+      `候选人有增长场景和快速迭代经验，对转化目标与体验平衡有理解，可作为业务型设计候选人跟进。`
+    ], index);
+  }
+  if (/Android|iOS|前端|客户端|性能优化/.test(title)) {
+    return evidenceGroup([
+      `候选人的${title}履历连续，技术栈和工程化经验与岗位要求贴合，适合进入技术初筛。`,
+      `候选人在性能优化、内存治理和稳定性排查方面经验明确，可重点验证端侧质量建设能力。`,
+      `候选人具备架构拆分和组件化经验，能承接复杂业务迭代，适合需要长期工程治理的团队。`,
+      `候选人有平台适配、调试工具和版本交付经验，能较快融入高频发布节奏。`
+    ], index);
+  }
+  if (/产品|运营|策略/.test(title)) {
+    return evidenceGroup([
+      `候选人在${title}相关方向具备业务理解和项目闭环经验，适合优先沟通业务判断与推进方式。`,
+      `候选人的数据分析和指标拆解能力较强，能够支持增长实验和需求优先级判断。`,
+      `候选人有AI产品或工具平台经验，对场景抽象和方案表达较完整，适合复杂产品方向。`,
+      `候选人在运营策略、用户分层和资源协调上有经验，可验证其目标管理和转化提升能力。`
+    ], index);
+  }
+  if (/算法|机器学习|大数据|后端|测试|研发/.test(title)) {
+    return evidenceGroup([
+      `候选人具备${title}岗位关注的工程实现和系统架构经验，适合进入技术能力深挖。`,
+      `候选人有模型落地、特征工程和线上实验经验，可重点验证算法效果和业务结合能力。`,
+      `候选人在高并发、服务治理和容量规划方面经验明确，适合后端复杂系统方向推进。`,
+      `候选人具备测试体系、自动化覆盖和发布保障经验，可作为质量工程方向优先候选人。`
+    ], index);
+  }
+  return evidenceGroup([
+    `候选人履历完整、核心经历与${title}岗位要求接近，近期活跃度和能力标签均具备跟进价值。`,
+    `候选人行业经验和项目经历较稳定，与${title}的关键能力要求有较好交集，建议进入初筛。`,
+    `候选人能力结构较均衡，背景与岗位画像接近，可作为补充候选人纳入对比池。`,
+    `候选人经验连续且沟通活跃，整体适配度较高，适合进一步确认岗位动机和到岗意愿。`
+  ], index);
+}
+
 function candidateCard(candidate, index, inviteMode = false) {
   const activity = index % 3 === 1 ? "1个月内沟通过" : index % 3 === 2 ? "最近活跃" : "本周活跃";
   const meetingDates = ["6月18日 周四 14:00 - 15:00", "6月19日 周五 14:00 - 15:00"];
+  const searchJobTitle = selectedJobTitle();
+  const evidence = candidateEvidence(candidate, index);
+  const analysis = candidateAnalysis(candidate, index);
   return `
     <article class="candidate-card ${inviteMode ? "invite-card invitation-resume-card" : ""} ${!inviteMode && state.selectedCandidate === index ? "active" : ""}" data-candidate="${index}">
       ${inviteMode ? `
@@ -1119,10 +1283,6 @@ function candidateCard(candidate, index, inviteMode = false) {
           </div>
           <div class="recommend">
             <img class="radar-icon" src="${radarIcon}" alt="" />
-            <div class="rate">
-              <span>推荐指数</span>
-              <b>${Array.from({ length: candidate.score }, () => '<i class="iconfont icon-star-filled"></i>').join("")}</b>
-            </div>
           </div>
         </div>
         <div class="candidate-detail-grid">
@@ -1131,7 +1291,7 @@ function candidateCard(candidate, index, inviteMode = false) {
               <div class="timeline-row ${itemIndex === list.length - 1 ? "education" : ""}">
                 <span class="timeline-icon">${itemIndex === list.length - 1 ? '<i class="iconfont icon-cap"></i>' : itemIndex === 0 ? '<i class="iconfont icon-architecture"></i>' : "•"}</span>
                 <time>${item[0]}</time>
-                <p><span>${item[1]}</span><b></b><span>${item[2]}</span></p>
+                <p><span>${item[1]}</span><b></b><span>${itemIndex === list.length - 1 ? item[2] : searchJobTitle}</span></p>
               </div>
             `).join("")}
           </div>
@@ -1147,8 +1307,13 @@ function candidateCard(candidate, index, inviteMode = false) {
           </div>
         </div>
         <div class="match-analysis">
-          <strong>匹配分析：</strong>
-          <span>${candidate.analysis}</span>
+          <div class="analysis-head">
+            <i class="iconfont icon-magic"></i>
+            <strong>匹配分析</strong>
+            <b class="analysis-rating">${Array.from({ length: candidate.score }, () => '<i class="iconfont icon-star-filled"></i>').join("")}</b>
+          </div>
+          <div class="analysis-evidence">${evidence.map(item => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+          <span class="analysis-copy">${escapeHtml(analysis)}</span>
         </div>
       </div>
     </article>
@@ -1470,7 +1635,7 @@ function bindEvents() {
       }
       state.phase = "confirming";
       render();
-      schedulePhase("questionsTyping", 1000);
+      schedulePhase("profileTyping", 1000);
     });
   }
 
@@ -1495,8 +1660,17 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-input]").forEach(input => {
+    input.addEventListener("focus", event => {
+      const key = event.target.dataset.input;
+      if (!event.target.value.trim()) {
+        state[key] = "";
+        document.querySelectorAll(`[data-answer^="${key}:"]`).forEach(button => button.blur());
+        syncQuestionCard();
+      }
+    });
     input.addEventListener("input", event => {
       state[event.target.dataset.input] = event.target.value;
+      document.querySelectorAll(`[data-answer^="${event.target.dataset.input}:"]`).forEach(button => button.blur());
       syncQuestionCard();
     });
   });
@@ -1506,8 +1680,9 @@ function bindEvents() {
     submit.addEventListener("click", () => {
       if (!state.questionOne.trim() && !state.questionTwo.trim()) return;
       clearFlowTimer();
-      state.phase = "profileTyping";
+      state.phase = "resultsLoading";
       render();
+      schedulePhase("results", resultsRevealDelay);
     });
   }
 
@@ -1543,7 +1718,8 @@ function bindEvents() {
   if (cancelProfile) {
     cancelProfile.addEventListener("click", () => {
       clearFlowTimer();
-      state.phase = "questions";
+      state.phase = "home";
+      state.view = "home";
       render();
     });
   }
@@ -1552,9 +1728,8 @@ function bindEvents() {
   if (confirmProfile) {
     confirmProfile.addEventListener("click", () => {
       clearFlowTimer();
-      state.phase = "resultsLoading";
+      state.phase = "questionsTyping";
       render();
-      schedulePhase("results", resultsRevealDelay);
     });
   }
 
