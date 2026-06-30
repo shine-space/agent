@@ -196,6 +196,8 @@ const state = {
   submittedPrompt: "",
   questionOne: "",
   questionTwo: "",
+  submittedQuestionOne: "",
+  submittedQuestionTwo: "",
   selectedCandidate: 0,
   automationModal: false,
   automationView: "manage",
@@ -204,6 +206,11 @@ const state = {
   automationTeam: true,
   agentCallExpanded: true,
   agentTaskStep: 1,
+  agentProfileConfirmed: false,
+  agentResumeConfirmed: false,
+  agentInviteConfirmed: false,
+  agentCallProgress: 0,
+  agentResumeRevealCount: 0,
   subtitlePlayed: false,
   hashPickerOpen: false,
   hashPickerQuery: "",
@@ -233,6 +240,7 @@ const jobDictionary = [
 
 let flowTimer = null;
 let typingTimer = null;
+let agentResumeRevealTimer = null;
 let hashInputComposing = false;
 let homePromptComposing = false;
 
@@ -266,11 +274,20 @@ function scrollChatToLatest() {
   });
 }
 
+function scrollAgentResumePreviewToLatest() {
+  requestAnimationFrame(() => {
+    const latestCard = document.querySelector(".agent-resume-preview .candidate-card:last-child");
+    if (!latestCard) return;
+    latestCard.scrollIntoView({ block: "end", behavior: "smooth" });
+  });
+}
+
 function scheduleAgentTaskAdvance() {
   if (flowTimer) {
     clearTimeout(flowTimer);
     flowTimer = null;
   }
+  const stepDelay = state.agentTaskStep >= 4 ? 2000 : 4000;
   flowTimer = setTimeout(() => {
     if (!isAgentFlow() || state.phase !== "resultsLoading") return;
     if (state.agentTaskStep < 4) {
@@ -284,16 +301,106 @@ function scheduleAgentTaskAdvance() {
     state.agentCallExpanded = false;
     render();
     schedulePhase("results", resultsRevealDelay);
-  }, 4000);
+  }, stepDelay);
+}
+
+function clearAgentResumeRevealTimer() {
+  if (agentResumeRevealTimer) {
+    clearTimeout(agentResumeRevealTimer);
+    agentResumeRevealTimer = null;
+  }
+}
+
+function startAgentResumeReveal() {
+  clearAgentResumeRevealTimer();
+  state.agentResumeRevealCount = 0;
+  const revealNext = () => {
+    if (!isAgentFlow() || (state.phase !== "agentResumeWait" && state.phase !== "agentResumeConfirm")) {
+      clearAgentResumeRevealTimer();
+      return;
+    }
+    const total = agentMatchedCandidates().length;
+    state.agentResumeRevealCount = Math.min(total, state.agentResumeRevealCount + 1);
+    render();
+    if (state.agentResumeRevealCount < total) {
+      agentResumeRevealTimer = setTimeout(revealNext, 450);
+      return;
+    }
+    clearAgentResumeRevealTimer();
+  };
+  agentResumeRevealTimer = setTimeout(revealNext, 1000);
 }
 
 function startAgentTaskSequence() {
   clearFlowTimer();
+  state.phase = "agentResumeWait";
+  state.agentTaskStep = 2;
+  state.agentCallExpanded = false;
+  state.agentResumeRevealCount = 0;
+  render();
+  startAgentResumeReveal();
+  schedulePhase("agentResumeConfirm", 3000);
+}
+
+function startAgentCallSequence() {
+  clearFlowTimer();
+  clearAgentResumeRevealTimer();
+  state.phase = "agentInviteWait";
+  state.agentTaskStep = 3;
+  state.agentCallExpanded = true;
+  state.agentCallProgress = 0;
+  render();
+  scheduleAgentCallAdvance();
+}
+
+function agentCallCandidates() {
+  return agentMatchedCandidates();
+}
+
+function agentMatchedCandidates() {
+  return sortedCandidates().slice(0, 4);
+}
+
+function agentInvitedCandidates() {
+  return sortedCandidates().slice(0, 2);
+}
+
+function scheduleAgentCallAdvance() {
+  clearFlowTimer();
+  const callCount = agentCallCandidates().length;
+  flowTimer = setTimeout(() => {
+    if (!isAgentFlow() || state.phase !== "agentInviteWait") return;
+    state.agentCallProgress = Math.min(state.agentCallProgress + 1, callCount);
+    render();
+    if (state.agentCallProgress < callCount) {
+      scheduleAgentCallAdvance();
+      return;
+    }
+    flowTimer = setTimeout(() => {
+      if (!isAgentFlow() || state.phase !== "agentInviteWait") return;
+      state.phase = "agentInviteConfirm";
+      render();
+    }, 320);
+  }, 1500);
+}
+
+function startAgentInviteSequence() {
+  clearFlowTimer();
   state.phase = "resultsLoading";
-  state.agentTaskStep = 1;
+  state.agentTaskStep = 4;
   state.agentCallExpanded = false;
   render();
   scheduleAgentTaskAdvance();
+}
+
+function startAgentProfileConfirm() {
+  clearFlowTimer();
+  clearAgentResumeRevealTimer();
+  state.phase = "agentProfileWait";
+  state.agentTaskStep = 1;
+  state.agentCallExpanded = false;
+  render();
+  schedulePhase("agentProfile", 3000);
 }
 
 function phaseDelay(phase) {
@@ -386,10 +493,114 @@ function majorRequirement() {
   return "计算机科学与技术、信息管理、工业工程、心理学、统计学、相关业务专业";
 }
 
-function answerSummary() {
+function jobCategory() {
+  const title = selectedJobTitle();
+  if (/UI|交互|视觉|体验|设计/.test(title)) return "design";
+  if (/Android|iOS|前端|客户端|性能优化/.test(title)) return "client";
+  if (/产品|运营|策略/.test(title)) return "product";
+  if (/算法|机器学习|大数据|后端|测试|研发/.test(title)) return "rd";
+  return "general";
+}
+
+function profileCoreSkills() {
+  const skills = {
+    design: "复杂系统设计、用户研究、信息架构、原型表达、设计规范",
+    client: "端侧开发、性能优化、稳定性治理、工程化、跨端适配",
+    product: "需求拆解、数据分析、用户洞察、项目推进、商业判断",
+    rd: "系统设计、工程实现、性能优化、稳定性建设、复杂项目落地",
+    general: "业务理解、项目推进、跨团队协作、沟通表达、结果交付"
+  };
+  return skills[jobCategory()];
+}
+
+function schoolTypeRequirement() {
+  const schoolTypes = {
+    design: ["985/211", "海外高校QS100"],
+    client: ["985/211", "T60"],
+    product: ["985/211", "T28"],
+    rd: ["C9", "985/211"],
+    general: ["985/211", "国内普通本科"]
+  };
+  return schoolTypes[jobCategory()].join("、");
+}
+
+function socialProfileFields(profileTitle) {
+  const fields = {
+    design: {
+      experience: "3-5年设计经验，有完整项目落地案例",
+      location: "深圳、北京、上海优先"
+    },
+    client: {
+      experience: "3-6年客户端研发经验，有大型项目交付经历",
+      location: "深圳、北京、杭州优先"
+    },
+    product: {
+      experience: "3-5年产品经验，有从0到1或增长项目经历",
+      location: "深圳、北京、上海优先"
+    },
+    rd: {
+      experience: "3-7年研发经验，有复杂系统或高并发项目经历",
+      location: "深圳、北京、上海优先"
+    },
+    general: {
+      experience: "3年以上相关岗位经验，有完整项目交付经历",
+      location: "深圳、北京、上海优先"
+    }
+  };
+  const config = fields[jobCategory()];
+  return [
+    ["岗位名称", profileTitle],
+    ["工作经验", config.experience],
+    ["学校类型", schoolTypeRequirement()],
+    ["核心技能", profileCoreSkills()],
+    ["工作地点", config.location]
+  ];
+}
+
+function campusProfileFields(profileTitle) {
+  const fields = {
+    design: {
+      graduation: "2027年毕业",
+      skills: "作品集完整、用户研究、原型表达、视觉规范、设计协作"
+    },
+    client: {
+      graduation: "2027年毕业",
+      skills: "编程基础、端侧开发、算法基础、工程实践、开源项目优先"
+    },
+    product: {
+      graduation: "2027年毕业",
+      skills: "需求分析、数据意识、用户洞察、原型表达、AI项目经验优先"
+    },
+    rd: {
+      graduation: "2027年毕业",
+      skills: "算法基础、工程实践、开源贡献、系统设计、技术学习能力"
+    },
+    general: {
+      graduation: "2027年毕业",
+      skills: "学习能力、项目实践、沟通协作、问题分析、执行推进"
+    }
+  };
+  const config = fields[jobCategory()];
+  return [
+    ["岗位名称", profileTitle],
+    ["学校类型", schoolTypeRequirement()],
+    ["专业要求", majorRequirement()],
+    ["核心技能", config.skills],
+    ["毕业时间", config.graduation]
+  ];
+}
+
+function profileFields() {
+  const profileTitle = selectedJobTitle();
+  return state.hireType === "校招"
+    ? campusProfileFields(profileTitle)
+    : socialProfileFields(profileTitle);
+}
+
+function answerSummary(useSubmitted = false) {
   const questions = questionSet();
-  const education = state.questionOne.trim();
-  const language = state.questionTwo.trim();
+  const education = (useSubmitted ? state.submittedQuestionOne : state.questionOne).trim();
+  const language = (useSubmitted ? state.submittedQuestionTwo : state.questionTwo).trim();
   return {
     firstLabel: questions[0].label,
     secondLabel: questions[1].label,
@@ -454,7 +665,7 @@ function startAgentIntroTypewriter() {
     if (index >= text.length) {
       clearInterval(typingTimer);
       typingTimer = null;
-      startAgentTaskSequence();
+      startAgentProfileConfirm();
     }
   }, 32);
 }
@@ -859,7 +1070,7 @@ function chatThread() {
   }
 
   if (state.phase === "resultsLoading" || state.phase === "results") {
-    const answers = answerSummary();
+    const answers = answerSummary(true);
     const candidateCount = sortedCandidates().length;
     return `
       <aside class="chat-column chat-column-results">
@@ -924,25 +1135,50 @@ function agentTaskItem(label, status = "done", open = false, detail = "", active
 
 function agentStepTask(label, index, detail = "") {
   if (state.agentTaskStep < index) return "";
-  const current = state.agentTaskStep === index && state.phase === "resultsLoading";
-  return agentTaskItem(label, current ? "pending" : "done", current, current ? detail : "", current);
+  const activePhases = ["resultsLoading", "agentProfileWait", "agentProfile", "agentResumeWait", "agentResumeConfirm", "agentInviteWait", "agentInviteConfirm"];
+  const current = state.agentTaskStep === index && activePhases.includes(state.phase);
+  const waitingForUser = ["agentProfile", "agentResumeConfirm", "agentInviteConfirm"].includes(state.phase);
+  return agentTaskItem(label, current ? "pending" : "done", current, current ? detail : "", current && !waitingForUser);
+}
+
+function agentStageNotice(message) {
+  return `
+    <div class="agent-stage-confirm">
+      ${escapeHtml(message)}
+    </div>
+    <div class="waiting agent-stage-waiting"><span></span>等待您的回答</div>
+  `;
 }
 
 function agentChatThread(prompt, title) {
   const titleBubble = prompt;
   const agentTitle = selectedJobTitle();
-  const introText = `我来为您的需求规划任务，然后逐步实现。根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${agentTitle}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，让我先问几个关键问题。`;
+  const introText = `我已经明确了这是${state.hireType}【${agentTitle}】岗位。\n针对本次招聘任务，Agent 执行流程规划如下：岗位画像构建、基于画像简历匹配、AI外呼批量触达候选人、候选人面试意向沟通、正式面试邀约。\n任务执行过程中若需补充问询，将向您申请确认后再按流程分步落地执行`;
   const intro = escapeHtml(introText).replace(/\n/g, "<br />");
+  const callCandidates = agentCallCandidates();
+  const callButtons = callCandidates.map((candidate, index) => {
+    const isCalling = state.phase === "agentInviteWait" && index === state.agentCallProgress;
+    const isDone = state.phase !== "agentInviteWait" || index < state.agentCallProgress;
+    const buttonState = isCalling ? "calling" : isDone ? "done" : "pending";
+    const statusIcon = isCalling
+      ? '<span class="mini-loading"></span>'
+      : '<i class="iconfont icon-icon-phone"></i>';
+    return `
+      <button class="${buttonState}">
+        ${statusIcon}
+        <span>外呼${escapeHtml(candidate.name)}</span>
+        <i class="iconfont icon-chevron-right"></i>
+      </button>
+    `;
+  }).join("");
   const callDetail = state.phase === "results"
     ? `
-    <p>根据匹配的20份简历，为您AI已外呼</p>
-    <button><i class="iconfont icon-icon-phone"></i><span>外呼张三</span><i class="iconfont icon-chevron-right"></i></button>
-    <button><i class="iconfont icon-icon-phone"></i><span>外呼李四</span><i class="iconfont icon-chevron-right"></i></button>
+    <p>根据筛选出的${callCandidates.length}位候选人，为您AI已外呼</p>
+    ${callButtons}
   `
     : `
-    <p>根据匹配的20份简历，为您AI已外呼</p>
-    <button><i class="iconfont icon-icon-phone"></i><span>外呼张三</span><i class="iconfont icon-chevron-right"></i></button>
-    <button><span class="mini-loading"></span><span>外呼李四</span><i class="iconfont icon-chevron-right"></i></button>
+    <p>根据筛选出的${callCandidates.length}位候选人，为您AI已外呼</p>
+    ${callButtons}
   `;
 
   if (state.phase === "agentIntroTyping") {
@@ -954,14 +1190,17 @@ function agentChatThread(prompt, title) {
     `;
   }
 
-  if (state.phase === "resultsLoading") {
+  if (state.phase === "agentProfileWait" || state.phase === "agentProfile" || state.phase === "agentResumeWait" || state.phase === "agentResumeConfirm" || state.phase === "agentInviteWait" || state.phase === "agentInviteConfirm" || state.phase === "resultsLoading") {
     return `
       <aside class="chat-column agent-chat">
         <div class="bubble user">${titleBubble}</div>
         <div class="assistant-copy">${intro}</div>
         ${agentStepTask("分析需求，确认候选人画像", 1)}
+        ${state.phase === "agentProfile" ? agentStageNotice("已基于该岗位招聘需求生成候选人画像条件，请您确认。") : ""}
         ${agentStepTask("匹配候选人简历", 2)}
+        ${state.phase === "agentResumeConfirm" ? agentStageNotice(`依据岗位候选人画像，已为您筛选匹配出 ${agentMatchedCandidates().length} 份优质候选人简历，请确认是否启动 AI 外呼。`) : ""}
         ${agentStepTask("AI外呼候选人", 3, callDetail)}
+        ${state.phase === "agentInviteConfirm" ? agentStageNotice(`结合 AI 外呼收集到的候选人面试意向信息，目前已敲定 ${agentInvitedCandidates().length} 位候选人的面试参与意向及合适面试时段，是否按照预设的面试官日历，向候选人发送正式面试邀约？`) : ""}
         ${agentStepTask("确认面试意向候选人", 4)}
       </aside>
     `;
@@ -1024,18 +1263,12 @@ function followupInput(stop = false) {
 }
 
 function profileConfirmCard(withActions = true, extraClass = "") {
-  const answers = answerSummary();
-  const profileTitle = selectedJobTitle();
-  const majors = majorRequirement();
+  const fields = profileFields();
   return `
     <section class="profile-confirm-card ${extraClass}">
       <h2>理想候选人画像</h2>
       <dl>
-        <div><dt>岗位名称：</dt><dd>${escapeHtml(profileTitle)}</dd></div>
-        <div><dt>${escapeHtml(answers.firstLabel)}：</dt><dd>${escapeHtml(answers.first)}</dd></div>
-        <div><dt>专业要求：</dt><dd>${escapeHtml(majors)}</dd></div>
-        <div><dt>${escapeHtml(answers.secondLabel)}：</dt><dd>${escapeHtml(answers.second)}</dd></div>
-        <div><dt>客户端开发：</dt><dd>客户端开发、调试技能</dd></div>
+        ${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}：</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
       </dl>
       ${withActions ? `
         <div class="question-actions">
@@ -1047,8 +1280,60 @@ function profileConfirmCard(withActions = true, extraClass = "") {
   `;
 }
 
+function agentResumeConfirmCard() {
+  const displayedCandidates = agentMatchedCandidates();
+  const rows = displayedCandidates.map(candidate => {
+    const [, exp = "", degree = "", city = ""] = candidate.meta;
+    return `
+      <div class="agent-resume-row">
+        <strong>${escapeHtml(candidate.name)}</strong>
+        <span>${escapeHtml(exp)}</span>
+        <span>${escapeHtml(degree)}</span>
+        <span>${escapeHtml(city)}</span>
+        <button class="agent-resume-remove" type="button" aria-label="删除候选人"><i class="iconfont icon-btn-close"></i></button>
+      </div>
+    `;
+  }).join("");
+  return `
+    <section class="agent-resume-confirm-card">
+      <h2>已匹配简历</h2>
+      <div class="agent-resume-list">${rows}</div>
+      <div class="question-actions">
+        <button id="cancelAgentResume" class="text-action">取消</button>
+        <button id="confirmAgentResume" class="primary-pill">提交AI外呼 <i class="iconfont icon-enter-send"></i></button>
+      </div>
+    </section>
+  `;
+}
+
+function agentInviteConfirmCard() {
+  const willingCandidates = agentInvitedCandidates();
+  const rows = willingCandidates.map(candidate => `
+    <div class="agent-resume-row agent-invite-row">
+      <strong>${escapeHtml(candidate.name)}</strong>
+      <span>本周四、五，下午2点后均可</span>
+      <button class="agent-resume-remove" type="button" aria-label="删除候选人"><i class="iconfont icon-btn-close"></i></button>
+    </div>
+  `).join("");
+  return `
+    <section class="agent-resume-confirm-card">
+      <h2>面试意向候选人</h2>
+      <div class="agent-resume-list">${rows}</div>
+      <div class="question-actions">
+        <button id="cancelAgentInvite" class="text-action">取消</button>
+        <button id="confirmAgentInvite" class="primary-pill">提交邀约 <i class="iconfont icon-enter-send"></i></button>
+      </div>
+    </section>
+  `;
+}
+
 function bottomPanel() {
-  if (isAgentFlow()) return followupInput(state.phase !== "results");
+  if (isAgentFlow()) {
+    if (state.phase === "agentProfile") return `${followupInput(false)}${profileConfirmCard(true)}`;
+    if (state.phase === "agentResumeConfirm") return `${followupInput(false)}${agentResumeConfirmCard()}`;
+    if (state.phase === "agentInviteConfirm") return `${followupInput(false)}${agentInviteConfirmCard()}`;
+    return followupInput(state.phase !== "results");
+  }
   if (state.phase === "confirming" || state.phase === "questionsTyping" || state.phase === "profileTyping" || state.phase === "resultsLoading") return followupInput(true);
   if (state.phase === "questions") return `${followupInput(false)}${questionForm()}`;
   if (state.phase === "profile") return `${followupInput(false)}${profileConfirmCard(true)}`;
@@ -1068,6 +1353,8 @@ function agentLoadingText() {
 
 function mainPanel() {
   if (state.phase === "results") return resultsPanel();
+  if (isAgentFlow() && state.phase === "agentResumeWait" && state.agentResumeRevealCount > 0) return agentResumePreviewPanel();
+  if (isAgentFlow() && state.phase === "agentResumeConfirm") return agentResumePreviewPanel();
   if (isAgentFlow()) return loadingPanel(agentLoadingText());
   if (state.phase === "profileTyping" || state.phase === "profile") return loadingPanel("候选人画像生成中 ...");
   if (state.phase === "resultsLoading") return loadingPanel("大模型正在为您匹配简历 ...");
@@ -1075,11 +1362,12 @@ function mainPanel() {
 }
 
 function questionBlock(title, key, options, value) {
+  const customValue = options.includes(value) ? "" : value;
   return `
     <div class="question-block">
       <h2>${title}</h2>
       ${options.map((option, index) => `<button class="answer ${value === option ? "selected" : ""}" data-answer="${key}:${option}"><b>${String.fromCharCode(65 + index)}</b>${option}</button>`).join("")}
-      <input class="answer-input" data-input="${key}" placeholder="输入你的答案..." value="${options.includes(value) ? "" : value}" />
+      <input class="answer-input ${customValue.trim() ? "filled" : ""}" data-input="${key}" placeholder="输入你的答案..." value="${escapeHtml(customValue)}" />
     </div>
   `;
 }
@@ -1122,6 +1410,7 @@ function syncQuestionCard() {
     const key = input.dataset.input;
     const optionValues = Array.from(document.querySelectorAll(`[data-answer^="${key}:"]`)).map(button => button.dataset.answer.split(":").slice(1).join(":"));
     if (optionValues.includes(state[key])) input.value = "";
+    input.classList.toggle("filled", Boolean(input.value.trim()));
   });
 }
 
@@ -1141,6 +1430,22 @@ function resultsPanel() {
   `;
 }
 
+function agentResumePreviewPanel() {
+  const previewCandidates = agentMatchedCandidates().slice(0, Math.max(1, state.agentResumeRevealCount));
+  const newestIndex = previewCandidates.length - 1;
+  return `
+    <section class="result-panel results agent-resume-preview">
+      <div class="result-head">
+        <h2>${escapeHtml(resultSearchTitle(agentMatchedCandidates().length))}</h2>
+        <button class="more-button">${icon("more")}</button>
+      </div>
+      <div class="candidate-stream">
+        ${previewCandidates.map((candidate, index) => candidateCard(candidate, index, false, state.phase === "agentResumeWait" && index === newestIndex ? "reveal-new" : "")).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function agentInviteResultsPanel() {
   return `
     <section class="result-panel results invite-results">
@@ -1149,7 +1454,7 @@ function agentInviteResultsPanel() {
         <button class="more-button">${icon("more")}</button>
       </div>
       <div class="candidate-stream invite-stream">
-        ${sortedCandidates().slice(0, 2).map((candidate, index) => inviteCandidateCard(candidate, index)).join("")}
+        ${agentInvitedCandidates().map((candidate, index) => inviteCandidateCard(candidate, index)).join("")}
       </div>
     </section>
   `;
@@ -1247,14 +1552,106 @@ function candidateAnalysis(candidate, index) {
   ], index);
 }
 
-function candidateCard(candidate, index, inviteMode = false) {
+function candidateSchoolTag(candidate) {
+  const educationRows = candidate.history.filter(item => item.some(Boolean)).filter(item => /大学|学院|University|College/i.test(item[1] || ""));
+  const schoolText = educationRows.map(item => item[1]).join(" ");
+  if (/北京大学|清华大学|浙江大学|上海交通大学|复旦大学|南京大学|中国科学技术大学|哈尔滨工业大学|西安交通大学/.test(schoolText)) return "C9";
+  if (/北京邮电大学|同济大学|厦门大学|南开大学|天津大学|中山大学|武汉大学|华中科技大学|东南大学/.test(schoolText)) return "T28";
+  if (/武汉大学|华中科技大学|中山大学|四川大学|东南大学|北京邮电大学|西安交通大学|北京大学|南京大学|浙江大学/.test(schoolText)) return "985/211";
+  if (/香港|澳门|台湾/.test(schoolText)) return "港澳台院校";
+  if (/University|College/i.test(schoolText)) return "QS100";
+  const skillSchoolTag = candidate.skills.find(skill => /985|211|C9|T28|T60|QS100/.test(skill));
+  return skillSchoolTag || "";
+}
+
+function candidateCompanyTag(candidate) {
+  const companyText = candidate.history.map(item => item[1]).join(" ");
+  const hasKnownCompany = /腾讯|百度|阿里|字节|华为|拼多多|网易|小米|金山|携程|360|哔哩哔哩|腾讯音乐/.test(companyText);
+  if (!hasKnownCompany) return "";
+  return state.hireType === "校招" ? "名企实习" : "名企履历";
+}
+
+function candidateCoreSkillTags(candidate, index) {
+  const skillText = candidate.skills.join(" ");
+  const groups = {
+    design: [
+      ["作品集", "复杂系统", "用户研究"],
+      ["信息架构", "体验洞察", "设计规范"],
+      ["视觉表达", "动效设计", "组件规范"],
+      ["C端增长", "数据意识", "快速迭代"]
+    ],
+    client: [
+      ["C++", "工程化", "性能优化"],
+      ["Qt", "稳定性", "大型项目"],
+      ["Chromium", "调试工具", "跨端"],
+      ["音视频", "架构设计", "版本迭代"]
+    ],
+    product: [
+      ["产品策略", "数据分析", "项目闭环"],
+      ["用户洞察", "增长实验", "需求拆解"],
+      ["AI产品", "场景抽象", "方案表达"],
+      ["运营策略", "资源协调", "目标管理"]
+    ],
+    rd: [
+      ["系统架构", "高并发", "工程落地"],
+      ["算法模型", "数据处理", "线上实验"],
+      ["自动化", "质量保障", "缺陷分析"],
+      ["服务治理", "性能优化", "稳定性建设"]
+    ],
+    general: [
+      ["核心技能", "项目经验", "履历完整"],
+      ["业务理解", "协作经验", "沟通活跃"],
+      ["经验连续", "能力贴合", "推荐优先"]
+    ]
+  };
+  const base = evidenceGroup(groups[jobCategory()], index);
+  const skillMatches = candidate.skills.filter(skill => new RegExp(skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(skillText)).slice(0, 2);
+  return [...new Set([...skillMatches, ...base])].slice(0, 3);
+}
+
+function candidateResumeTags(candidate, index) {
+  const tags = [];
+  const advancedDegree = candidate.meta.find(item => /博士|硕士/.test(item));
+  if (advancedDegree) tags.push(advancedDegree);
+  const school = candidateSchoolTag(candidate);
+  if (school) tags.push(school);
+  const company = candidateCompanyTag(candidate);
+  if (company) tags.push(company);
+  const hasProject = candidate.skills.some(skill => /大型项目|项目负责人|项目经验|工程化|架构设计/.test(skill)) || candidate.score >= 4;
+  const hasManagement = candidate.skills.some(skill => /管理经验|项目负责人|团队协作/.test(skill));
+  const priorityTags = [];
+  const projectTags = {
+    design: ["设计系统项目", "复杂业务项目", "增长改版项目", "跨端设计项目"],
+    client: ["性能优化项目", "跨端工程项目", "稳定性治理", "大型客户端项目"],
+    product: ["增长策略项目", "0-1产品项目", "AI产品项目", "商业化项目"],
+    rd: ["高并发项目", "复杂系统项目", "模型落地项目", "质量体系项目"],
+    general: ["核心业务项目", "复杂项目落地", "跨团队项目", "关键项目经验"]
+  };
+  const managementTags = {
+    design: ["设计协作", "规范推动", "跨团队共创", "项目owner"],
+    client: ["技术带教", "模块负责人", "工程协作", "发布统筹"],
+    product: ["需求统筹", "跨团队推进", "资源协调", "项目owner"],
+    rd: ["技术带教", "模块负责人", "架构协同", "质量推进"],
+    general: ["团队协作", "项目推进", "资源协调", "流程管理"]
+  };
+  const category = jobCategory();
+  if (hasProject) priorityTags.push(projectTags[category][index % projectTags[category].length]);
+  if (hasManagement) priorityTags.push(managementTags[category][index % managementTags[category].length]);
+  const coreLimit = Math.max(1, 5 - tags.length - priorityTags.length);
+  tags.push(...candidateCoreSkillTags(candidate, index).slice(0, coreLimit));
+  tags.push(...priorityTags);
+  return [...new Set(tags)].slice(0, 5);
+}
+
+function candidateCard(candidate, index, inviteMode = false, extraClass = "") {
   const activity = index % 3 === 1 ? "1个月内沟通过" : index % 3 === 2 ? "最近活跃" : "本周活跃";
   const meetingDates = ["6月18日 周四 14:00 - 15:00", "6月19日 周五 14:00 - 15:00"];
   const searchJobTitle = selectedJobTitle();
   const evidence = candidateEvidence(candidate, index);
   const analysis = candidateAnalysis(candidate, index);
+  const resumeTags = candidateResumeTags(candidate, index);
   return `
-    <article class="candidate-card ${inviteMode ? "invite-card invitation-resume-card" : ""} ${!inviteMode && state.selectedCandidate === index ? "active" : ""}" data-candidate="${index}">
+    <article class="candidate-card ${extraClass} ${inviteMode ? "invite-card invitation-resume-card" : ""} ${!inviteMode && state.selectedCandidate === index ? "active" : ""}" data-candidate="${index}">
       ${inviteMode ? `
         <div class="invite-card-top">
           <strong>${meetingDates[index] || candidate.meeting || meetingDates[0]}</strong>
@@ -1297,7 +1694,7 @@ function candidateCard(candidate, index, inviteMode = false) {
           </div>
           <div class="candidate-tags">
             <div class="candidate-tags-list">
-              ${candidate.skills.map(skill => `<span>${skill}</span>`).join("")}
+              ${resumeTags.map(skill => `<span>${escapeHtml(skill)}</span>`).join("")}
             </div>
             <div class="candidate-actions">
               <button class="interview-button">发起面试</button>
@@ -1325,6 +1722,9 @@ function render() {
   app.innerHTML = state.view === "home" ? home() : fastPage();
   bindEvents();
   if (state.view !== "home") scrollChatToLatest();
+  if (isAgentFlow() && (state.phase === "agentResumeWait" || state.phase === "agentResumeConfirm") && state.agentResumeRevealCount > 0) {
+    scrollAgentResumePreviewToLatest();
+  }
   if (state.phase === "questionsTyping") {
     startIntroTypewriter();
   }
@@ -1622,9 +2022,15 @@ function bindEvents() {
       state.activeMode = state.mode;
       state.questionOne = "";
       state.questionTwo = "";
+      state.submittedQuestionOne = "";
+      state.submittedQuestionTwo = "";
       state.selectedCandidate = 0;
       state.agentCallExpanded = true;
       state.agentTaskStep = 1;
+      state.agentProfileConfirmed = false;
+      state.agentResumeConfirmed = false;
+      state.agentInviteConfirmed = false;
+      state.agentCallProgress = 0;
       state.view = "fast";
       if (state.activeMode === "Agent全流程") {
         state.phase = "agentIntroTyping";
@@ -1680,6 +2086,8 @@ function bindEvents() {
     submit.addEventListener("click", () => {
       if (!state.questionOne.trim() && !state.questionTwo.trim()) return;
       clearFlowTimer();
+      state.submittedQuestionOne = state.questionOne.trim();
+      state.submittedQuestionTwo = state.questionTwo.trim();
       state.phase = "resultsLoading";
       render();
       schedulePhase("results", resultsRevealDelay);
@@ -1710,6 +2118,8 @@ function bindEvents() {
     cancelQuestions.addEventListener("click", () => {
       state.questionOne = "";
       state.questionTwo = "";
+      state.submittedQuestionOne = "";
+      state.submittedQuestionTwo = "";
       render();
     });
   }
@@ -1728,8 +2138,49 @@ function bindEvents() {
   if (confirmProfile) {
     confirmProfile.addEventListener("click", () => {
       clearFlowTimer();
+      if (isAgentFlow()) {
+        state.agentProfileConfirmed = true;
+        startAgentTaskSequence();
+        return;
+      }
       state.phase = "questionsTyping";
       render();
+    });
+  }
+
+  const cancelAgentResume = document.getElementById("cancelAgentResume");
+  if (cancelAgentResume) {
+    cancelAgentResume.addEventListener("click", () => {
+      clearFlowTimer();
+      state.phase = "home";
+      state.view = "home";
+      render();
+    });
+  }
+
+  const confirmAgentResume = document.getElementById("confirmAgentResume");
+  if (confirmAgentResume) {
+    confirmAgentResume.addEventListener("click", () => {
+      state.agentResumeConfirmed = true;
+      startAgentCallSequence();
+    });
+  }
+
+  const cancelAgentInvite = document.getElementById("cancelAgentInvite");
+  if (cancelAgentInvite) {
+    cancelAgentInvite.addEventListener("click", () => {
+      clearFlowTimer();
+      state.phase = "home";
+      state.view = "home";
+      render();
+    });
+  }
+
+  const confirmAgentInvite = document.getElementById("confirmAgentInvite");
+  if (confirmAgentInvite) {
+    confirmAgentInvite.addEventListener("click", () => {
+      state.agentInviteConfirmed = true;
+      startAgentInviteSequence();
     });
   }
 

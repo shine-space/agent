@@ -1285,6 +1285,25 @@ button {
   overflow: auto;
 }
 
+.chat-column,
+.candidate-stream,
+.profile-confirm-card dl,
+.question-card,
+.flow-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-column::-webkit-scrollbar,
+.candidate-stream::-webkit-scrollbar,
+.profile-confirm-card dl::-webkit-scrollbar,
+.question-card::-webkit-scrollbar,
+.flow-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .phase-questions .chat-column {
   bottom: 190px;
 }
@@ -1303,6 +1322,18 @@ button {
 
 .phase-results .chat-column {
   bottom: 152px;
+}
+
+.phase-agentProfile .chat-column,
+.phase-agentResumeConfirm .chat-column,
+.phase-agentInviteConfirm .chat-column {
+  bottom: 280px;
+}
+
+.phase-agentProfile .profile-confirm-card:not(.profile-summary-card),
+.phase-agentResumeConfirm .agent-resume-confirm-card,
+.phase-agentInviteConfirm .agent-resume-confirm-card {
+  animation-delay: 950ms;
 }
 
 .bubble {
@@ -1421,8 +1452,6 @@ button {
   padding-top: 12px;
   font-size: 13px;
   line-height: 22px;
-  transform-origin: top left;
-  animation: agent-detail-bounce 280ms cubic-bezier(0.2, 1.28, 0.36, 1) both;
 }
 
 .agent-task-detail p {
@@ -1450,8 +1479,19 @@ button {
 }
 
 .agent-task-detail .icon-icon-phone {
+  width: 14px;
+  flex: 0 0 14px;
   font-size: 14px;
   font-weight: 400;
+}
+
+.agent-task-detail button.pending {
+  color: var(--muted);
+}
+
+.agent-task-detail button.pending .iconfont {
+  color: var(--muted);
+  opacity: 0.65;
 }
 
 .agent-task-detail .iconfont {
@@ -1473,6 +1513,8 @@ button {
 .mini-loading {
   width: 14px;
   height: 14px;
+  flex: 0 0 14px;
+  box-sizing: border-box;
   border: 2px solid #c8d7ff;
   border-top-color: var(--blue);
   border-radius: 50%;
@@ -1610,6 +1652,18 @@ button {
   animation: spin 1s linear infinite;
 }
 
+.agent-stage-confirm {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 22px;
+  animation: soft-wait-in 240ms ease-out both;
+}
+
+.agent-stage-waiting {
+  animation: soft-wait-in 260ms ease-out 120ms both;
+}
+
 .phase-questions .waiting,
 .phase-profile .waiting {
   opacity: 0;
@@ -1617,7 +1671,8 @@ button {
 }
 
 .question-card,
-.profile-confirm-card:not(.profile-summary-card) {
+.profile-confirm-card:not(.profile-summary-card),
+.agent-resume-confirm-card {
   position: absolute;
   left: var(--left-gutter);
   bottom: 20px;
@@ -1642,6 +1697,110 @@ button {
 
 .profile-confirm-card {
   max-height: 240px;
+}
+
+.agent-resume-confirm-card {
+  gap: 4px;
+  max-height: 240px;
+  padding: 12px;
+}
+
+.agent-resume-confirm-card h2 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.agent-resume-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+}
+
+.agent-resume-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.agent-resume-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.agent-resume-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: box-shadow 160ms ease;
+}
+
+.agent-resume-row:hover {
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.agent-resume-row strong {
+  font-size: 13px;
+  line-height: 22px;
+  margin-right: 8px;
+  transition: color 160ms ease;
+}
+
+.agent-resume-row:hover strong {
+  color: var(--brand);
+}
+
+.agent-resume-row span {
+  display: inline-flex;
+  align-items: center;
+  color: var(--secondary);
+  font-size: 12px;
+}
+
+.agent-resume-row span + span::before {
+  content: "";
+  width: 1px;
+  height: 12px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.agent-resume-remove {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: var(--secondary);
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.agent-resume-row:hover .agent-resume-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.agent-resume-remove .iconfont {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.agent-resume-remove:hover {
+  color: #f04438;
 }
 
 .profile-summary-card {
@@ -1676,9 +1835,9 @@ button {
 
 .profile-confirm-card dl div {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   font-size: 13px;
-  line-height: 20px;
+  line-height: 22px;
 }
 
 .profile-summary-card dl div {
@@ -1709,6 +1868,7 @@ button {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .followup-card textarea {
@@ -1791,11 +1951,19 @@ button {
 }
 
 .answer-input {
-  color: var(--muted);
+  color: var(--text);
   transition: border-color 160ms ease;
 }
 
+.answer-input::placeholder {
+  color: var(--muted);
+}
+
 .answer-input:focus {
+  border-color: #000;
+}
+
+.answer-input.filled {
   border-color: #000;
 }
 
@@ -1991,6 +2159,21 @@ button {
   transform: translateY(-1px);
 }
 
+.agent-resume-preview .candidate-card.reveal-new {
+  animation: resume-card-reveal 360ms cubic-bezier(0.42, 0, 0.18, 1) both;
+}
+
+@keyframes resume-card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .candidate-card.invite-card {
   cursor: default;
 }
@@ -2093,51 +2276,49 @@ button {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .candidate-summary {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 42px;
+  gap: 12px;
 }
 
 .candidate-avatar {
   position: relative;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
 }
 
 .candidate-avatar img {
   display: block;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   object-fit: cover;
 }
 
 .candidate-avatar span {
   position: absolute;
   right: -2px;
-  bottom: 0;
+  bottom: -2px;
   display: flex;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #fff;
-  border-radius: 50%;
-  color: #3464E0;
+  border: 0.2px solid #fff;
+  border-radius: 6px;
+  color: var(--blue);
   background: #fff;
   line-height: 1;
 }
 
 .candidate-avatar .iconfont {
   color: var(--blue);
-  font-size: 16px;
-  line-height: 1;
+  font-size: 14px;
 }
 
 .candidate-info {
@@ -2168,8 +2349,8 @@ button {
 .viewed-tag {
   padding: 0px 6px;
   border-radius: 6px;
-  color: var(--blue);
-  background: var(--brand-light);
+  color: var(--text);
+  background: var(--soft);
   font-size: 12px;
   line-height: 20px;
 }
@@ -2191,7 +2372,7 @@ button {
   color: var(--text);
   font-size: 12px;
   line-height: 20px;
-  padding-top:4px;
+  padding-top: 2px;
 }
 
 .candidate-meta span + span::before {
@@ -2273,7 +2454,7 @@ button {
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
 }
 
 .timeline-row {
@@ -2345,8 +2526,8 @@ button {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  flex: 0 0 280px;
-  gap: 14px;
+  flex: 0 0 300px;
+  gap: 8px;
   overflow: hidden;
 }
 
