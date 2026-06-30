@@ -610,11 +610,11 @@ function answerSummary(useSubmitted = false) {
 }
 
 function introCopy() {
-  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n除了JD中提到的这些要求外，请补充这些信息，我就能为您生成完整的候选人画像了`;
+  return `您的需求已接收，我已经明确了这是${state.hireType}【${selectedJobTitle()}】岗位。
 }
 
 function profileIntroCopy() {
-  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n我先为您生成理想候选人画像，请确认搜索条件是否需要调整：`;
+  return `您的需求已接收，我已经明确了这是${state.hireType}【${selectedJobTitle()}】岗位。\n我根据JD信息先为您生成候选人画像，请确认`;
 }
 
 function questionPromptCopy() {
