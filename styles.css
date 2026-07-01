@@ -2267,8 +2267,8 @@ button {
 }
 
 .invite-card .viewed-tag-green {
-  color: var(--blue);
-  background: var(--brand-light);
+  color: var(--text);
+  background: var(--soft);
 }
 
 .candidate-body {
