@@ -614,7 +614,7 @@ function introCopy() {
 }
 
 function profileIntroCopy() {
-  return `根据您提供的JD信息，我已经明确了这是${state.hireType}，岗位是【${selectedJobTitle()}】，并且有详细的技术要求。\n我先为您生成理想候选人画像，请确认搜索条件是否需要调整：`;
+  return `接下来将为您检索候选人简历，本次招聘为${state.hireType} 【${selectedJobTitle()}】岗位，结合系统岗位 JD 信息，已生成目标候选人画像，请您查看。`;
 }
 
 function questionPromptCopy() {
@@ -1060,10 +1060,9 @@ function chatThread() {
     return `
       <aside class="chat-column chat-column-results">
         <div class="bubble user">${prompt}</div>
-        <div class="assistant-copy">${profileIntro}</div>
         ${isTyping
-          ? `<div class="assistant-copy result-copy typewriter-fast" id="profileTypewriter" data-text="${escapeHtml(profileCopy())}"></div>`
-          : `<div class="assistant-copy result-copy">${profileCopy()}</div>`}
+          ? `<div class="assistant-copy typewriter-fast" id="profileTypewriter" data-text="${escapeHtml(profileIntroCopy())}"></div>`
+          : `<div class="assistant-copy">${profileIntro}</div>`}
         ${isTyping ? "" : `<div class="waiting"><span></span>等待您的回答</div>`}
       </aside>
     `;
@@ -1173,11 +1172,11 @@ function agentChatThread(prompt, title) {
   }).join("");
   const callDetail = state.phase === "results"
     ? `
-    <p>根据筛选出的${callCandidates.length}位候选人，为您AI已外呼</p>
+    <p>根据筛选出的${callCandidates.length}位候选人，为您开始AI外呼</p>
     ${callButtons}
   `
     : `
-    <p>根据筛选出的${callCandidates.length}位候选人，为您AI已外呼</p>
+    <p>根据筛选出的${callCandidates.length}位候选人，为您开始AI外呼</p>
     ${callButtons}
   `;
 
@@ -1266,7 +1265,7 @@ function profileConfirmCard(withActions = true, extraClass = "") {
   const fields = profileFields();
   return `
     <section class="profile-confirm-card ${extraClass}">
-      <h2>理想候选人画像</h2>
+      <h2>候选人画像</h2>
       <dl>
         ${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}：</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
       </dl>
