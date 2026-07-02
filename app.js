@@ -209,6 +209,7 @@ const state = {
   agentProfileConfirmed: false,
   agentResumeConfirmed: false,
   agentInviteConfirmed: false,
+  agentCancelled: false,
   agentCallProgress: 0,
   agentResumeRevealCount: 0,
   subtitlePlayed: false,
@@ -216,7 +217,8 @@ const state = {
   hashPickerQuery: "",
   hashPickerX: 16,
   hashPickerY: 16,
-  hashToken: null
+  hashToken: null,
+  oldPreviewOpen: false
 };
 
 const jobDictionary = [
@@ -834,9 +836,27 @@ function home() {
           </div>
         </div>
       </section>
-      <a class="home-credit" href="http://ttian.top/" target="_blank" rel="noopener noreferrer">By TTian.top</a>
+      <div class="home-footer-links">
+        <a class="home-credit" href="http://ttian.top/" target="_blank" rel="noopener noreferrer">By TTian.top</a>
+        <button class="home-old-link" id="openOldPreview" type="button">old</button>
+      </div>
       ${state.automationModal ? automationModal() : ""}
+      ${state.oldPreviewOpen ? oldPreviewModal() : ""}
     </main>
+  `;
+}
+
+function oldPreviewModal() {
+  return `
+    <div class="image-preview-layer" role="dialog" aria-modal="true" aria-label="old图片查看">
+      <button class="image-preview-backdrop" id="closeOldPreviewBackdrop" type="button" aria-label="关闭"></button>
+      <div class="image-preview-modal">
+        <button class="image-preview-close" id="closeOldPreview" type="button" aria-label="关闭">
+          <i class="iconfont icon-btn-close"></i>
+        </button>
+        <img src="assets/1.jpg" alt="old" />
+      </div>
+    </div>
   `;
 }
 
@@ -1136,16 +1156,17 @@ function agentStepTask(label, index, detail = "") {
   if (state.agentTaskStep < index) return "";
   const activePhases = ["resultsLoading", "agentProfileWait", "agentProfile", "agentResumeWait", "agentResumeConfirm", "agentInviteWait", "agentInviteConfirm"];
   const current = state.agentTaskStep === index && activePhases.includes(state.phase);
-  const waitingForUser = ["agentProfile", "agentResumeConfirm", "agentInviteConfirm"].includes(state.phase);
+  const waitingForUser = ["agentProfile", "agentResumeConfirm", "agentInviteConfirm"].includes(state.phase) || state.agentCancelled;
   return agentTaskItem(label, current ? "pending" : "done", current, current ? detail : "", current && !waitingForUser);
 }
 
-function agentStageNotice(message) {
+function agentStageNotice(message, cancelled = false) {
+  const waitingIcon = cancelled ? "" : "<span></span>";
   return `
     <div class="agent-stage-confirm">
       ${escapeHtml(message)}
     </div>
-    <div class="waiting agent-stage-waiting"><span></span>等待您的回答</div>
+    <div class="waiting agent-stage-waiting ${cancelled ? "agent-cancelled" : ""}">${waitingIcon}${cancelled ? "已取消任务" : "等待您的回答"}</div>
   `;
 }
 
@@ -1195,11 +1216,11 @@ function agentChatThread(prompt, title) {
         <div class="bubble user">${titleBubble}</div>
         <div class="assistant-copy">${intro}</div>
         ${agentStepTask("分析需求，确认候选人画像", 1)}
-        ${state.phase === "agentProfile" ? agentStageNotice("已基于该岗位招聘需求生成候选人画像条件，请您确认。") : ""}
+        ${state.phase === "agentProfile" ? agentStageNotice("已基于该岗位招聘需求生成候选人画像条件，请您确认。", state.agentCancelled) : ""}
         ${agentStepTask("匹配候选人简历", 2)}
-        ${state.phase === "agentResumeConfirm" ? agentStageNotice(`依据岗位候选人画像，已为您筛选匹配出 ${agentMatchedCandidates().length} 份优质候选人简历，请确认是否启动 AI 外呼。`) : ""}
+        ${state.phase === "agentResumeConfirm" ? agentStageNotice(`依据岗位候选人画像，已为您筛选匹配出 ${agentMatchedCandidates().length} 份优质候选人简历，请确认是否启动 AI 外呼。`, state.agentCancelled) : ""}
         ${agentStepTask("AI外呼候选人", 3, callDetail)}
-        ${state.phase === "agentInviteConfirm" ? agentStageNotice(`结合 AI 外呼收集到的候选人面试意向信息，目前已敲定 ${agentInvitedCandidates().length} 位候选人的面试参与意向及合适面试时段，是否按照预设的面试官日历，向候选人发送正式面试邀约？`) : ""}
+        ${state.phase === "agentInviteConfirm" ? agentStageNotice(`结合 AI 外呼收集到的候选人面试意向信息，目前已敲定 ${agentInvitedCandidates().length} 位候选人的面试参与意向及合适面试时段，是否按照预设的面试官日历，向候选人发送正式面试邀约？`, state.agentCancelled) : ""}
         ${agentStepTask("确认面试意向候选人", 4)}
       </aside>
     `;
@@ -1328,6 +1349,7 @@ function agentInviteConfirmCard() {
 
 function bottomPanel() {
   if (isAgentFlow()) {
+    if (state.agentCancelled) return followupInput(false);
     if (state.phase === "agentProfile") return `${followupInput(false)}${profileConfirmCard(true)}`;
     if (state.phase === "agentResumeConfirm") return `${followupInput(false)}${agentResumeConfirmCard()}`;
     if (state.phase === "agentInviteConfirm") return `${followupInput(false)}${agentInviteConfirmCard()}`;
@@ -1751,8 +1773,13 @@ function bindEvents() {
 
   const prompt = document.getElementById("homePrompt");
   if (prompt) {
+    const syncPromptCardContentState = textarea => {
+      const card = textarea.closest(".input-card");
+      if (card) card.classList.toggle("has-content", textarea.value.trim().length > 0);
+    };
     const syncHomePromptValue = (textarea, caretPosition = textarea.value.length, shouldRender = true) => {
       state.prompt = textarea.value;
+      syncPromptCardContentState(textarea);
       if (state.hashToken) {
         const tokenStillExists = state.prompt.slice(state.hashToken.start, state.hashToken.end) === state.hashToken.text;
         if (!tokenStillExists) state.hashToken = null;
@@ -1793,6 +1820,7 @@ function bindEvents() {
     });
     prompt.addEventListener("input", event => {
       const caretPosition = event.target.selectionStart || event.target.value.length;
+      syncPromptCardContentState(event.target);
       if (homePromptComposing || event.isComposing) {
         syncHomePromptValue(event.target, caretPosition, false);
         return;
@@ -1943,6 +1971,29 @@ function bindEvents() {
     render();
   };
 
+  const closeOldPreview = () => {
+    state.oldPreviewOpen = false;
+    render();
+  };
+
+  const openOldPreview = document.getElementById("openOldPreview");
+  if (openOldPreview) {
+    openOldPreview.addEventListener("click", () => {
+      state.oldPreviewOpen = true;
+      render();
+    });
+  }
+
+  const oldPreviewClose = document.getElementById("closeOldPreview");
+  if (oldPreviewClose) {
+    oldPreviewClose.addEventListener("click", closeOldPreview);
+  }
+
+  const oldPreviewBackdrop = document.getElementById("closeOldPreviewBackdrop");
+  if (oldPreviewBackdrop) {
+    oldPreviewBackdrop.addEventListener("click", closeOldPreview);
+  }
+
   document.querySelectorAll("[data-close-automation]").forEach(button => {
     button.addEventListener("click", closeAutomation);
   });
@@ -2004,9 +2055,11 @@ function bindEvents() {
     confirmAutomationCreate.addEventListener("click", closeAutomation);
   }
 
-  if (state.automationModal) {
+  if (state.automationModal || state.oldPreviewOpen) {
     document.onkeydown = event => {
-      if (event.key === "Escape") closeAutomation();
+      if (event.key !== "Escape") return;
+      if (state.oldPreviewOpen) closeOldPreview();
+      else closeAutomation();
     };
   } else {
     document.onkeydown = null;
@@ -2029,6 +2082,7 @@ function bindEvents() {
       state.agentProfileConfirmed = false;
       state.agentResumeConfirmed = false;
       state.agentInviteConfirmed = false;
+      state.agentCancelled = false;
       state.agentCallProgress = 0;
       state.view = "fast";
       if (state.activeMode === "Agent全流程") {
@@ -2050,6 +2104,7 @@ function bindEvents() {
       clearFlowTimer();
       state.view = "home";
       state.phase = "home";
+      state.agentCancelled = false;
       render();
     });
   }
@@ -2108,6 +2163,7 @@ function bindEvents() {
       clearFlowTimer();
       state.view = "home";
       state.phase = "home";
+      state.agentCancelled = false;
       render();
     });
   }
@@ -2127,6 +2183,11 @@ function bindEvents() {
   if (cancelProfile) {
     cancelProfile.addEventListener("click", () => {
       clearFlowTimer();
+      if (isAgentFlow()) {
+        state.agentCancelled = true;
+        render();
+        return;
+      }
       state.phase = "home";
       state.view = "home";
       render();
@@ -2151,8 +2212,7 @@ function bindEvents() {
   if (cancelAgentResume) {
     cancelAgentResume.addEventListener("click", () => {
       clearFlowTimer();
-      state.phase = "home";
-      state.view = "home";
+      state.agentCancelled = true;
       render();
     });
   }
@@ -2169,8 +2229,7 @@ function bindEvents() {
   if (cancelAgentInvite) {
     cancelAgentInvite.addEventListener("click", () => {
       clearFlowTimer();
-      state.phase = "home";
-      state.view = "home";
+      state.agentCancelled = true;
       render();
     });
   }
